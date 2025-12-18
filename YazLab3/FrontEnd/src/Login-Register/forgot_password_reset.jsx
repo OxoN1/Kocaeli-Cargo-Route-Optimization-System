@@ -31,7 +31,6 @@ function ForgotPasswordReset() {
         };
 
         try {
-            // Backend'e isteği atıyoruz
             const cevap = await fetch("http://localhost:5000/api/auth/reset-password", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

@@ -9,8 +9,8 @@ function Login() {
 
   const girisYap = async () => {
     const veri = {
-      email: email,
-      password: sifre
+      Email: email,
+      Password: sifre
     };
 
     try {

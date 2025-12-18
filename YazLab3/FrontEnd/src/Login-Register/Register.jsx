@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import './Register.css'; // veya Register.css
 
 function Register() {
-  const [kullaniciAdi, setKullaniciAdi] = useState("");
   const [sifre, setSifre] = useState("");
   const [email, setEmail] = useState("");
   const [isim, setIsim] = useState("");
@@ -12,7 +11,7 @@ function Register() {
   const navigate = useNavigate();
 
   const kayitOl = async () => {
-    const veri = { username: kullaniciAdi, password: sifre, email: email,  isim: isim, soyisim: soyisim };
+    const veri = { Isim: isim, Soyisim: soyisim, Email: email, Password: sifre };
     try {
       const cevap = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
@@ -51,12 +50,6 @@ function Register() {
             onChange={(e) => setSoyisim(e.target.value)}
           />
           </div>
-          <input
-            type="text"
-            placeholder="Kullanici Adi"
-            value={kullaniciAdi}
-            onChange={(e) => setKullaniciAdi(e.target.value)}
-          />
           <input
             type="email"
             placeholder="E-posta"
