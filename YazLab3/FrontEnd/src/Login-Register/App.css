@@ -1,0 +1,80 @@
+:root {
+  --bg-1: #0f172a;
+  --bg-2: #2b1b3d;
+}
+
+/* Global body arka planı — :global kullanımını kaldırdım, normal body seçici kullanın */
+body {
+  background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* Ortalamayı sadece kimlik (auth) sayfaları için uygula */
+.auth-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;      /* dikey ortala */
+  justify-content: center;  /* yatay ortala */
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* Genel sayfa ayarları */
+html, body {
+  height: 100%;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* #root ayarları */
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 0;
+}
+
+/* Ana kutunun tasarımı */
+.ana-kutu {
+  background-color: #2c2c2c;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  width: 300px;
+  text-align: center;
+  color: white;
+  margin-top: 24px; /* header kaldırıldığı için azaltıldı */
+}
+
+/* Form elemanları arasındaki boşluk */
+.form-elemani {
+  margin-bottom: 15px;
+  text-align: left;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border-radius: 5px;
+  border: none;
+  box-sizing: border-box;
+}
+
+.giris-butonu {
+  background-color: #646cff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.giris-butonu:hover {
+  background-color: #535bf2;
+}
