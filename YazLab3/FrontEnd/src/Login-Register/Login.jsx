@@ -36,7 +36,7 @@ function Login() {
 
         // Username saklamıyoruz burada — Home sayfası / Profile bileşeni email üzerinden veriyi çekecek
         alert("Giriş Başarılı 🎉");
-        navigate('/home')
+        navigate('/menu'); // Giriş başarılıysa menü sayfasına yönlendir
       } else {
         const err = await cevap.json().catch(()=>null);
         alert("HATA: " + (err?.mesaj || "Kullanıcı adı veya şifre yanlış!"));
