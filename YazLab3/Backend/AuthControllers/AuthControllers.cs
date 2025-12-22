@@ -241,5 +241,40 @@ namespace YazLab2.Controllers
                 return StatusCode(500, new { mesaj = "Hata: " + ex.Message });
             }
         }
+
+        // Yeni endpoint: e-posta üzerinden admin kontrolü (frontend için)
+        [HttpGet("is-admin")]
+        public IActionResult IsAdmin([FromQuery] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { mesaj = "Email zorunludur." });
+            }
+
+            try
+            {
+                string connString = _config.GetConnectionString("MyDatabaseConnection");
+                using (var connection = new MySqlConnection(connString))
+                {
+                    connection.Open();
+                    using (var cmd = new MySqlCommand("SELECT UserID FROM Users WHERE Email=@email LIMIT 1;", connection))
+                    {
+                        cmd.Parameters.AddWithValue("@email", email);
+                        var obj = cmd.ExecuteScalar();
+                        if (obj == null)
+                        {
+                            return Ok(new { isAdmin = false });
+                        }
+
+                        var userId = Convert.ToInt32(obj);
+                        return Ok(new { isAdmin = userId == 1 });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mesaj = "Sunucu hatası: " + ex.Message });
+            }
+        }
     }
 }

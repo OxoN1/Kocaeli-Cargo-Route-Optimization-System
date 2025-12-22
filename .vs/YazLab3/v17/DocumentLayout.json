@@ -1,0 +1,173 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\frontend\\src\\menu\\menu.jsx||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\frontend\\src\\menu\\menu.jsx||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\frontend\\src\\menu\\menu.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\frontend\\src\\menu\\menu.css||{A5401142-F49D-43DB-90B1-F57BA349E55C}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\routingcontrollers\\tripplannercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\routingcontrollers\\tripplannercontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\database\\database.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\database\\database.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\authcontrollers\\authcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\authcontrollers\\authcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\routingcontrollers\\routingcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\routingcontrollers\\routingcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\stationcontrollers\\stationcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\stationcontrollers\\stationcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|c:\\users\\toprak\\documents\\github\\yeni klas\u00F6r\\yazlab3\\yazlab3\\backend\\shipmentcontrollers\\shipmentcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{36DBD3B8-75DB-49A6-80C9-D87F5BE71136}|YazLab3\\YazLab3.csproj|solutionrelative:yazlab3\\backend\\shipmentcontrollers\\shipmentcontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 7,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TripPlannerController.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\RoutingControllers\\TripPlannerController.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\RoutingControllers\\TripPlannerController.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\RoutingControllers\\TripPlannerController.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\RoutingControllers\\TripPlannerController.cs",
+              "ViewState": "AgIAABUAAAAAAAAAAIA0wCcAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-22T01:13:27.875Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "AuthControllers.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\AuthControllers\\AuthControllers.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\AuthControllers\\AuthControllers.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\AuthControllers\\AuthControllers.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\AuthControllers\\AuthControllers.cs",
+              "ViewState": "AgIAAOwAAAAAAAAAAAAQwPsAAAANAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-22T00:55:11.046Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "menu.css",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\FrontEnd\\src\\Menu\\menu.css",
+              "RelativeDocumentMoniker": "YazLab3\\FrontEnd\\src\\Menu\\menu.css",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\FrontEnd\\src\\Menu\\menu.css",
+              "RelativeToolTip": "YazLab3\\FrontEnd\\src\\Menu\\menu.css",
+              "ViewState": "AgIAALMAAAAAAAAAAAAAAM4AAAAYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
+              "WhenOpened": "2025-12-22T00:54:40.963Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\appsettings.json",
+              "RelativeDocumentMoniker": "YazLab3\\appsettings.json",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\appsettings.json",
+              "RelativeToolTip": "YazLab3\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAABYAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2025-12-22T00:21:55.946Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "routingControllers.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\RoutingControllers\\routingControllers.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\RoutingControllers\\routingControllers.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\RoutingControllers\\routingControllers.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\RoutingControllers\\routingControllers.cs",
+              "ViewState": "AgIAAC4AAAAAAAAAAAAawEQAAAARAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-22T00:21:08.607Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "shipmentControllers.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\ShipmentControllers\\shipmentControllers.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\ShipmentControllers\\shipmentControllers.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\ShipmentControllers\\shipmentControllers.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\ShipmentControllers\\shipmentControllers.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-22T00:07:40.732Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "database.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\database\\database.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\database\\database.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\database\\database.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\database\\database.cs",
+              "ViewState": "AgIAACMAAAAAAAAAAAAAADMAAAA7AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-21T23:26:06.093Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "menu.jsx",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\FrontEnd\\src\\Menu\\menu.jsx",
+              "RelativeDocumentMoniker": "YazLab3\\FrontEnd\\src\\Menu\\menu.jsx",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\FrontEnd\\src\\Menu\\menu.jsx",
+              "RelativeToolTip": "YazLab3\\FrontEnd\\src\\Menu\\menu.jsx",
+              "ViewState": "AgIAAE4BAAAAAAAAAAAUwGQBAAAVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003663|",
+              "WhenOpened": "2025-12-21T23:17:53.486Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "stationControllers.cs",
+              "DocumentMoniker": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\StationControllers\\stationControllers.cs",
+              "RelativeDocumentMoniker": "YazLab3\\Backend\\StationControllers\\stationControllers.cs",
+              "ToolTip": "C:\\Users\\Toprak\\Documents\\GitHub\\Yeni klas\u00F6r\\YazLab3\\YazLab3\\Backend\\StationControllers\\stationControllers.cs",
+              "RelativeToolTip": "YazLab3\\Backend\\StationControllers\\stationControllers.cs",
+              "ViewState": "AgIAADEAAAAAAAAAAAAawEEAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-12-21T23:17:24.822Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
