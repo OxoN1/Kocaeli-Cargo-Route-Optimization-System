@@ -41,12 +41,12 @@ public static class Database
                 ON DUPLICATE KEY UPDATE Email = VALUES(Email);
 
                 CREATE TABLE IF NOT EXISTS Stations (
-                    Id INT PRIMARY KEY AUTO_INCREMENT,
+                    Id INT AUTO_INCREMENT PRIMARY KEY,
                     StationName VARCHAR(100) NOT NULL,
                     Latitude DOUBLE NOT NULL,
-                    Longitude DOUBLE NOT NULL
+                    Longitude DOUBLE NOT NULL,
+                    UNIQUE KEY uq_station_name (StationName)
                 );
-
                 INSERT INTO Stations (StationName, Latitude, Longitude)
                 VALUES 
                     ('KOU MERKEZ',40.82345000,29.92550000),
@@ -101,6 +101,7 @@ public static class Database
                     UserId INT NOT NULL,
                     StationId INT NOT NULL,
                     WeightKg INT NOT NULL,
+                    Content VARCHAR(200) DEFAULT '',
                     ShipDate DATE NOT NULL,
                     Status VARCHAR(20) NOT NULL DEFAULT 'Pending',
                     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -116,6 +117,7 @@ public static class Database
                     RoadCost DOUBLE NOT NULL DEFAULT 0,
                     RentalCost DOUBLE NOT NULL DEFAULT 0,
                     TotalCost DOUBLE NOT NULL DEFAULT 0,
+                    Polyline LONGTEXT,
                     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (VehicleId) REFERENCES Vehicles(Id)
                 );
@@ -141,6 +143,17 @@ public static class Database
 
             komut.CommandText = tabloSql;
             komut.ExecuteNonQuery();
+
+            // Mevcut tabloya Polyline kolonu ekle (eğer yoksa)
+            try
+            {
+                var alterCmd = new MySqlCommand("ALTER TABLE Trips ADD COLUMN Polyline LONGTEXT;", baglanti);
+                alterCmd.ExecuteNonQuery();
+            }
+            catch (MySqlException mex) when (mex.Number == 1060)
+            {
+                // 1060 = Duplicate column name -> kolon zaten var, devam et
+            }
 
             // MySQL sürümleri CREATE INDEX IF NOT EXISTS'i desteklemeyebilir.
             // Bu yüzden index yaratma işlemlerini ayrı komutlarla deniyoruz,

@@ -31,7 +31,7 @@ namespace YazLab2.Controllers
             public List<double[]> Polyline { get; set; } = new();
         }
 
-        // Yeni: mode (unlimited | limited), maxVehicles (sýnýrlý senaryoda), objective (maxWeight|maxCount)
+        // Yeni: mode (unlimited | limited), maxVehicles (sï¿½nï¿½rlï¿½ senaryoda), objective (maxWeight|maxCount)
         [HttpPost("plan-next-day")]
         public async Task<IActionResult> PlanNextDay([FromQuery] string date = "", [FromQuery] string mode = "unlimited", [FromQuery] int maxVehicles = 0, [FromQuery] string objective = "maxWeight")
         {
@@ -42,7 +42,7 @@ namespace YazLab2.Controllers
             }
             else if (!DateTime.TryParse(date, out shipDate))
             {
-                return BadRequest(new { mesaj = "Geçersiz tarih formatý." });
+                return BadRequest(new { mesaj = "Geï¿½ersiz tarih formatï¿½." });
             }
 
             try
@@ -57,7 +57,7 @@ namespace YazLab2.Controllers
 
                 if (string.IsNullOrWhiteSpace(connString))
                 {
-                    return StatusCode(500, new { mesaj = "Veritabaný baðlantý dizesi yok." });
+                    return StatusCode(500, new { mesaj = "Veritabanï¿½ baï¿½lantï¿½ dizesi yok." });
                 }
 
                 // DEPOT: "KOU MERKEZ" istasyonunu bul
@@ -76,7 +76,7 @@ namespace YazLab2.Controllers
                         using var rdr2 = await cmd2.ExecuteReaderAsync();
                         if (!await rdr2.ReadAsync())
                         {
-                            return StatusCode(500, new { mesaj = "Depo (KOU MERKEZ) bulunamadý ve baþka istasyon yok." });
+                            return StatusCode(500, new { mesaj = "Depo (KOU MERKEZ) bulunamadï¿½ ve baï¿½ka istasyon yok." });
                         }
                         depotStationId = rdr2.GetInt32(rdr2.GetOrdinal("Id"));
                         depotLat = rdr2.GetDouble(rdr2.GetOrdinal("Latitude"));
@@ -114,7 +114,7 @@ namespace YazLab2.Controllers
                     return Ok(new { mesaj = "Belirtilen tarihte bekleyen kargo yok.", plans = new List<PlanResult>() });
                 }
 
-                // Araçlarý oku (active)
+                // Araï¿½larï¿½ oku (active)
                 var vehicles = new List<(int Id, int CapacityKg, bool IsOwned, double RentalCost, double FuelCostPerKm)>();
                 using (var conn = new MySqlConnection(connString))
                 {
@@ -139,10 +139,10 @@ namespace YazLab2.Controllers
                 double rentalCost = _config.GetValue<double?>("Routing:DefaultRentalCost") ?? 200.0;
 
                 // Heuristics:
-                // - unlimited: owned araçlarý kullan, yetmezse kirala; araç atamasý için First-Fit Decreasing (önce aðýr kargolar).
-                // - limited: maxVehicles param ile greedy seçim: objective = maxWeight -> büyük aðýrlýklarý önce; maxCount -> küçük aðýrlýklarý önce.
+                // - unlimited: owned araï¿½larï¿½ kullan, yetmezse kirala; araï¿½ atamasï¿½ iï¿½in First-Fit Decreasing (ï¿½nce aï¿½ï¿½r kargolar).
+                // - limited: maxVehicles param ile greedy seï¿½im: objective = maxWeight -> bï¿½yï¿½k aï¿½ï¿½rlï¿½klarï¿½ ï¿½nce; maxCount -> kï¿½ï¿½ï¿½k aï¿½ï¿½rlï¿½klarï¿½ ï¿½nce.
                 List<VehicleSlot> slots = new();
-                // baþlangýç: veritabanýndaki araçlar
+                // baï¿½langï¿½ï¿½: veritabanï¿½ndaki araï¿½lar
                 foreach (var v in vehicles)
                 {
                     slots.Add(new VehicleSlot
@@ -156,7 +156,7 @@ namespace YazLab2.Controllers
                     });
                 }
 
-                // Helper: kiralýk araç ekle
+                // Helper: kiralï¿½k araï¿½ ekle
                 void AddRentedSlot()
                 {
                     slots.Add(new VehicleSlot
@@ -170,13 +170,13 @@ namespace YazLab2.Controllers
                     });
                 }
 
-                // Planlama için kullanýlacak shipment set
+                // Planlama iï¿½in kullanï¿½lacak shipment set
                 var candidateShipments = new List<(long Id, int StationId, int WeightKg, int UserId)>(shipments);
 
                 if (mode.Equals("limited", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (maxVehicles <= 0) return BadRequest(new { mesaj = "limited mod için maxVehicles parametresi girilmelidir." });
-                    // maxVehicles kadar slot oluþtur (önce DB araçlarýný kullan, sonra gerekiyorsa rented ile tamamla)
+                    if (maxVehicles <= 0) return BadRequest(new { mesaj = "limited mod iï¿½in maxVehicles parametresi girilmelidir." });
+                    // maxVehicles kadar slot oluï¿½tur (ï¿½nce DB araï¿½larï¿½nï¿½ kullan, sonra gerekiyorsa rented ile tamamla)
                     var initial = new List<VehicleSlot>();
                     // use DB slots up to maxVehicles
                     foreach (var s in slots)
@@ -206,10 +206,10 @@ namespace YazLab2.Controllers
                     }
                     slots = initial;
 
-                    // seçim stratejisi
+                    // seï¿½im stratejisi
                     if (objective == "maxCount")
                     {
-                        candidateShipments = candidateShipments.OrderBy(s => s.WeightKg).ToList(); // küçük aðýrlýk önce
+                        candidateShipments = candidateShipments.OrderBy(s => s.WeightKg).ToList(); // kï¿½ï¿½ï¿½k aï¿½ï¿½rlï¿½k ï¿½nce
                     }
                     else // maxWeight
                     {
@@ -262,7 +262,7 @@ namespace YazLab2.Controllers
                     }
                 }
 
-                // þimdi her slot için rota sýrala (NearestNeighbor using open connection) ve maliyeti hesapla
+                // ï¿½imdi her slot iï¿½in rota sï¿½rala (NearestNeighbor using open connection) ve maliyeti hesapla
                 var planResults = new List<PlanResult>();
                 using (var conn = new MySqlConnection(connString))
                 {
@@ -319,9 +319,12 @@ namespace YazLab2.Controllers
                             double rentC = slot.IsRented ? slot.RentalCost : 0.0;
                             double totalCost = roadCost + extraFuel + rentC;
 
+                            // Polyline'Ä± JSON string'e Ã§evir
+                            string polylineJson = System.Text.Json.JsonSerializer.Serialize(fullPoints);
+
                             // Insert Trip
-                            const string insertTrip = @"INSERT INTO Trips (TripDate, VehicleId, TotalDistanceKm, RoadCost, RentalCost, TotalCost) 
-VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();";
+                            const string insertTrip = @"INSERT INTO Trips (TripDate, VehicleId, TotalDistanceKm, RoadCost, RentalCost, TotalCost, Polyline) 
+VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_INSERT_ID();";
                             long tripId;
                             using (var tripCmd = new MySqlCommand(insertTrip, conn, (MySqlTransaction)tran))
                             {
@@ -331,6 +334,7 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();
                                 tripCmd.Parameters.AddWithValue("@road", roadCost);
                                 tripCmd.Parameters.AddWithValue("@rental", rentC);
                                 tripCmd.Parameters.AddWithValue("@total", totalCost);
+                                tripCmd.Parameters.AddWithValue("@polyline", polylineJson);
                                 var idObj = await tripCmd.ExecuteScalarAsync();
                                 tripId = Convert.ToInt64(idObj);
                             }
@@ -388,15 +392,15 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();
                     }
                 }
 
-                return Ok(new { mesaj = "Plan baþarýyla oluþturuldu.", plans = planResults });
+                return Ok(new { mesaj = "Plan baï¿½arï¿½yla oluï¿½turuldu.", plans = planResults });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mesaj = "Sunucu hatasý: " + ex.Message });
+                return StatusCode(500, new { mesaj = "Sunucu hatasï¿½: " + ex.Message });
             }
         }
 
-        // Yardýmcý tip
+        // Yardï¿½mcï¿½ tip
         private class VehicleSlot
         {
             public int VehicleId { get; set; }
@@ -462,7 +466,7 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();
             using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
             {
-                throw new Exception($"Ýstasyon bulunamadý. Id={stationId}");
+                throw new Exception($"ï¿½stasyon bulunamadï¿½. Id={stationId}");
             }
 
             var lat = reader.GetDouble(reader.GetOrdinal("Latitude"));
@@ -485,7 +489,7 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();
             using var reader = await cmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
             {
-                throw new Exception($"Ýstasyon bulunamadý. Id={stationId}");
+                throw new Exception($"ï¿½stasyon bulunamadï¿½. Id={stationId}");
             }
 
             var lat = reader.GetDouble(reader.GetOrdinal("Latitude"));
@@ -517,6 +521,129 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total); SELECT LAST_INSERT_ID();
                 pts.Add(new[] { lat, lng });
             }
             return (distM / 1000.0, pts);
+        }
+
+        // Yeni endpoint: tÃ¼m oluÅŸturulan rotalarÄ± listele
+        [HttpGet("all-routes")]
+        public async Task<IActionResult> GetAllRoutes()
+        {
+            try
+            {
+                string connString = _config.GetConnectionString("MyDatabaseConnection");
+                if (string.IsNullOrWhiteSpace(connString))
+                {
+                    connString = _config.GetConnectionString("MyConnection") ?? connString;
+                }
+
+                if (string.IsNullOrWhiteSpace(connString))
+                {
+                    return StatusCode(500, new { mesaj = "VeritabanÄ± baÄŸlantÄ± dizesi yok." });
+                }
+
+                var routes = new List<object>();
+
+                using (var conn = new MySqlConnection(connString))
+                {
+                    await conn.OpenAsync();
+
+                    // Trips tablosundan tÃ¼m seferleri Ã§ek
+                    const string sqlTrips = @"
+                        SELECT Id, TripDate, VehicleId, TotalDistanceKm, RoadCost, RentalCost, TotalCost, CreatedAt
+                        FROM Trips
+                        ORDER BY CreatedAt DESC;";
+
+                    using var cmdTrips = new MySqlCommand(sqlTrips, conn);
+                    using var rdrTrips = await cmdTrips.ExecuteReaderAsync();
+
+                    var tripsList = new List<(int TripId, DateTime TripDate, int VehicleId, double DistanceKm, double RoadCost, double RentalCost, double TotalCost, DateTime CreatedAt)>();
+
+                    while (await rdrTrips.ReadAsync())
+                    {
+                        var tripId = rdrTrips.GetInt32(rdrTrips.GetOrdinal("Id"));
+                        var tripDate = rdrTrips.GetDateTime(rdrTrips.GetOrdinal("TripDate"));
+                        var vehicleId = rdrTrips.GetInt32(rdrTrips.GetOrdinal("VehicleId"));
+                        var distanceKm = rdrTrips.GetDouble(rdrTrips.GetOrdinal("TotalDistanceKm"));
+                        var roadCost = rdrTrips.GetDouble(rdrTrips.GetOrdinal("RoadCost"));
+                        var rentalCost = rdrTrips.GetDouble(rdrTrips.GetOrdinal("RentalCost"));
+                        var totalCost = rdrTrips.GetDouble(rdrTrips.GetOrdinal("TotalCost"));
+                        var createdAt = rdrTrips.GetDateTime(rdrTrips.GetOrdinal("CreatedAt"));
+
+                        tripsList.Add((tripId, tripDate, vehicleId, distanceKm, roadCost, rentalCost, totalCost, createdAt));
+                    }
+
+                    rdrTrips.Close();
+
+                    // Her sefer iÃ§in kargo bilgilerini Ã§ek
+                    foreach (var trip in tripsList)
+                    {
+                        const string sqlShipments = @"
+                            SELECT s.Id, s.StationId, s.WeightKg, st.StationName
+                            FROM TripShipments ts
+                            INNER JOIN Shipments s ON ts.ShipmentId = s.Id
+                            INNER JOIN Stations st ON s.StationId = st.Id
+                            WHERE ts.TripId = @tripId;";
+
+                        var shipments = new List<object>();
+
+                        using var cmdShip = new MySqlCommand(sqlShipments, conn);
+                        cmdShip.Parameters.AddWithValue("@tripId", trip.TripId);
+                        using var rdrShip = await cmdShip.ExecuteReaderAsync();
+
+                        while (await rdrShip.ReadAsync())
+                        {
+                            shipments.Add(new
+                            {
+                                shipmentId = rdrShip.GetInt64(rdrShip.GetOrdinal("Id")),
+                                stationId = rdrShip.GetInt32(rdrShip.GetOrdinal("StationId")),
+                                stationName = rdrShip.GetString(rdrShip.GetOrdinal("StationName")),
+                                weightKg = rdrShip.GetInt32(rdrShip.GetOrdinal("WeightKg"))
+                            });
+                        }
+
+                        rdrShip.Close();
+
+                        // KargolarÄ±n istasyon ID'lerinden unique bir liste oluÅŸtur
+                        var stationOrderList = shipments
+                            .Select(s => ((dynamic)s).stationId)
+                            .Cast<int>()
+                            .Distinct()
+                            .ToList();
+
+                        // Polyline bilgisi tabloda yok, boÅŸ liste gÃ¶nder
+                        var polylineList = new List<double[]>();
+
+                        routes.Add(new
+                        {
+                            tripId = trip.TripId,
+                            tripDate = trip.TripDate.ToString("yyyy-MM-dd"),
+                            vehicleId = trip.VehicleId,
+                            distanceKm = trip.DistanceKm,
+                            roadCost = trip.RoadCost,
+                            rentalCost = trip.RentalCost,
+                            totalCost = trip.TotalCost,
+                            stationOrder = stationOrderList,
+                            polyline = polylineList,
+                            createdAt = trip.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                            shipments
+                        });
+                    }
+                }
+
+                return Ok(new
+                {
+                    mesaj = $"{routes.Count} rota bulundu.",
+                    routes
+                });
+            }
+            catch (MySqlException mysqlEx)
+            {
+                // MySQL Ã¶zel hatasÄ± (Ã¶rn: tablo yok)
+                return StatusCode(500, new { mesaj = "VeritabanÄ± hatasÄ±.", detay = mysqlEx.Message, kod = mysqlEx.Number });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mesaj = "Rotalar listelenirken hata oluÅŸtu.", detay = ex.Message, tip = ex.GetType().Name });
+            }
         }
     }
 }

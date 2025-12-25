@@ -19,6 +19,8 @@ namespace YazLab2.Controllers
             public string Email { get; set; } = string.Empty;
             public int StationId { get; set; }
             public int WeightKg { get; set; }
+            public string Content { get; set; } = string.Empty;
+            public int Quantity { get; set; } = 1;
         }
 
         [HttpPost]
@@ -26,7 +28,7 @@ namespace YazLab2.Controllers
         {
             if (request is null)
             {
-                return BadRequest(new { mesaj = "Geçersiz istek." });
+                return BadRequest(new { mesaj = "Geï¿½ersiz istek." });
             }
 
             if (string.IsNullOrWhiteSpace(request.Email))
@@ -36,14 +38,22 @@ namespace YazLab2.Controllers
 
             if (request.StationId <= 0)
             {
-                return BadRequest(new { mesaj = "Ýstasyon seçimi zorunludur." });
+                return BadRequest(new { mesaj = "ï¿½stasyon seï¿½imi zorunludur." });
             }
 
             if (request.WeightKg <= 0)
             {
-                return BadRequest(new { mesaj = "Aðýrlýk 0'dan büyük olmalýdýr." });
+                return BadRequest(new { mesaj = "Aï¿½ï¿½rlï¿½k 0'dan bï¿½yï¿½k olmalï¿½dï¿½r." });
+            }
+            if (string.IsNullOrWhiteSpace(request.Content))
+            {
+                return BadRequest(new { mesaj = "Kargo iÃ§eriÄŸi zorunludur." });
             }
 
+            if (request.Quantity <= 0)
+            {
+                return BadRequest(new { mesaj = "Adet 0'dan bÃ¼yÃ¼k olmalÄ±dÄ±r." });
+            }
             var tomorrow = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
 
             try
@@ -61,7 +71,7 @@ namespace YazLab2.Controllers
                         var userObj = userCmd.ExecuteScalar();
                         if (userObj == null)
                         {
-                            return BadRequest(new { mesaj = "Kullanýcý bulunamadý." });
+                            return BadRequest(new { mesaj = "KullanÄ±cÄ± bulunamadÄ±." });
                         }
 
                         userId = Convert.ToInt32(userObj);
@@ -73,31 +83,37 @@ namespace YazLab2.Controllers
                         var exists = Convert.ToInt32(stCmd.ExecuteScalar() ?? 0);
                         if (exists == 0)
                         {
-                            return BadRequest(new { mesaj = "Ýstasyon bulunamadý." });
+                            return BadRequest(new { mesaj = "Ä°stasyon bulunamadÄ±." });
                         }
                     }
 
                     const string insertSql = @"
-INSERT INTO Shipments (UserId, StationId, WeightKg, ShipDate, Status)
-VALUES (@userId, @stationId, @weightKg, @shipDate, 'Pending');
-SELECT LAST_INSERT_ID();";
+INSERT INTO Shipments (UserId, StationId, WeightKg, Content, ShipDate, Status)
+VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending');";
 
-                    long shipmentId;
-                    using (var insertCmd = new MySqlCommand(insertSql, connection))
+                    var shipmentIds = new List<long>();
+                    
+                    // Quantity kadar ayrÄ± satÄ±r oluÅŸtur
+                    for (int i = 0; i < request.Quantity; i++)
                     {
-                        insertCmd.Parameters.AddWithValue("@userId", userId);
-                        insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
-                        insertCmd.Parameters.AddWithValue("@weightKg", request.WeightKg);
-                        insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
+                        using (var insertCmd = new MySqlCommand(insertSql + " SELECT LAST_INSERT_ID();", connection))
+                        {
+                            insertCmd.Parameters.AddWithValue("@userId", userId);
+                            insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
+                            insertCmd.Parameters.AddWithValue("@weightKg", request.WeightKg);
+                            insertCmd.Parameters.AddWithValue("@content", request.Content);
+                            insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
 
-                        var idObj = insertCmd.ExecuteScalar();
-                        shipmentId = Convert.ToInt64(idObj);
+                            var idObj = insertCmd.ExecuteScalar();
+                            shipmentIds.Add(Convert.ToInt64(idObj));
+                        }
                     }
 
                     return Ok(new
                     {
-                        mesaj = "Kargo talebi alýndý.",
-                        shipmentId,
+                        mesaj = $"Kargo talebi alÄ±ndÄ±. {request.Quantity} adet kargo oluÅŸturuldu.",
+                        shipmentIds,
+                        totalShipments = shipmentIds.Count,
                         shipDate = tomorrow.ToString("yyyy-MM-dd"),
                         status = "Pending",
                     });
@@ -105,7 +121,7 @@ SELECT LAST_INSERT_ID();";
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { mesaj = "Sunucu hatasý: " + ex.Message });
+                return StatusCode(500, new { mesaj = "Sunucu hatasÄ±: " + ex.Message });
             }
         }
     }

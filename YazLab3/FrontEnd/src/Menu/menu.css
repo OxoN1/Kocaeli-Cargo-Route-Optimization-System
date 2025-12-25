@@ -64,6 +64,31 @@ body, html {
   filter: drop-shadow(0 2px 8px rgba(102, 126, 234, 0.5));
 }
 
+/* Navbar butonları */
+.navbar-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.navbar-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  filter: brightness(1.1);
+}
+
+.navbar-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
 /* Harita alanı - Container */
 .map-wrapper {
   flex: 1;
