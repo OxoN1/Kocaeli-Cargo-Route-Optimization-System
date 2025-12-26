@@ -38,7 +38,8 @@ namespace YazLab2.Controllers
             DateTime shipDate;
             if (string.IsNullOrWhiteSpace(date))
             {
-                shipDate = DateTime.UtcNow.Date.AddDays(1);
+                // Local time kullan (UTC değil)
+                shipDate = DateTime.Now.Date.AddDays(1);
             }
             else if (!DateTime.TryParse(date, out shipDate))
             {
@@ -90,12 +91,15 @@ namespace YazLab2.Controllers
                     }
                 }
 
-                // Bekleyen kargolar (shipments) topla
-                var shipments = new List<(long Id, int StationId, int WeightKg, int UserId)>();
+                // Bekleyen kargolar (shipments) topla - koordinatlarla birlikte + Quantity
+                var shipments = new List<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>();
                 using (var conn = new MySqlConnection(connString))
                 {
                     await conn.OpenAsync();
-                    const string sqlShip = "SELECT Id, UserId, StationId, WeightKg FROM Shipments WHERE ShipDate=@d AND Status='Pending';";
+                    const string sqlShip = @"SELECT s.Id, s.UserId, s.StationId, s.WeightKg, s.Quantity, st.Latitude, st.Longitude 
+                        FROM Shipments s 
+                        INNER JOIN Stations st ON s.StationId = st.Id 
+                        WHERE s.ShipDate=@d AND s.Status='Pending';";
                     using var cmd = new MySqlCommand(sqlShip, conn);
                     cmd.Parameters.AddWithValue("@d", shipDate.ToString("yyyy-MM-dd"));
                     using var reader = await cmd.ExecuteReaderAsync();
@@ -105,7 +109,10 @@ namespace YazLab2.Controllers
                         var userId = reader.GetInt32(reader.GetOrdinal("UserId"));
                         var stationId = reader.GetInt32(reader.GetOrdinal("StationId"));
                         var weight = reader.GetInt32(reader.GetOrdinal("WeightKg"));
-                        shipments.Add((id, stationId, weight, userId));
+                        var quantity = reader.GetInt32(reader.GetOrdinal("Quantity"));
+                        var lat = reader.GetDouble(reader.GetOrdinal("Latitude"));
+                        var lng = reader.GetDouble(reader.GetOrdinal("Longitude"));
+                        shipments.Add((id, stationId, weight, userId, lat, lng, quantity));
                     }
                 }
 
@@ -156,22 +163,46 @@ namespace YazLab2.Controllers
                     });
                 }
 
-                // Helper: kiral�k ara� ekle
-                void AddRentedSlot()
+                // Helper: kiral�k ara� ekle - vehicles tablosuna INSERT yapar
+                async Task<VehicleSlot> AddRentedSlotAsync(MySqlConnection connection)
                 {
-                    slots.Add(new VehicleSlot
+                    // Kiralık araç için vehicles tablosuna kayıt ekle
+                    const string insertVehicle = @"INSERT INTO Vehicles (Name, CapacityKg, IsOwned, IsActive, RentalCost, FuelCostPerKm) 
+                        VALUES (@name, @capacity, 0, 1, @rental, @fuel); SELECT LAST_INSERT_ID();";
+                    
+                    int newVehicleId;
+                    using (var cmd = new MySqlCommand(insertVehicle, connection))
                     {
-                        VehicleId = 0,
-                        CapacityKg = rentalCapacity,
-                        RemainingKg = rentalCapacity,
+                        cmd.Parameters.AddWithValue("@name", $"Kiral�k Ara�-{DateTime.Now.Ticks}");
+                        cmd.Parameters.AddWithValue("@capacity", 500);  // 500 kg sabit
+                        cmd.Parameters.AddWithValue("@rental", 200.0);   // 200 birim kiralama ücreti
+                        cmd.Parameters.AddWithValue("@fuel", 0.0);
+                        var idObj = await cmd.ExecuteScalarAsync();
+                        newVehicleId = Convert.ToInt32(idObj);
+                    }
+
+                    var newSlot = new VehicleSlot
+                    {
+                        VehicleId = newVehicleId,
+                        CapacityKg = 500,
+                        RemainingKg = 500,
                         IsRented = true,
-                        RentalCost = rentalCost,
+                        RentalCost = 200.0,
                         FuelCostPerKm = 0
-                    });
+                    };
+                    slots.Add(newSlot);
+                    return newSlot;
                 }
 
-                // Planlama i�in kullan�lacak shipment set
-                var candidateShipments = new List<(long Id, int StationId, int WeightKg, int UserId)>(shipments);
+                // Planlama için kullanılacak shipment set - Quantity'ye göre genişlet
+                // HER KARGO KAYDI QUANTITY KADAR KARGO İÇERİR, AMA AĞIRLIK WeightKg'DIR (Quantity ile çarpılmaz)
+                var candidateShipments = new List<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>();
+                foreach (var sh in shipments)
+                {
+                    // Her kargo kaydını quantity bilgisiyle ekle
+                    // NOT: Rotalamada WeightKg kullanılacak, Quantity sadece kaç adet olduğunu gösterir
+                    candidateShipments.Add(sh);
+                }
 
                 if (mode.Equals("limited", StringComparison.OrdinalIgnoreCase))
                 {
@@ -192,72 +223,83 @@ namespace YazLab2.Controllers
                         });
                         if (initial.Count == maxVehicles) break;
                     }
-                    while (initial.Count < maxVehicles)
+                    // Kiralık araç ekleme için veritabanı bağlantısı aç
+                    if (initial.Count < maxVehicles)
                     {
-                        initial.Add(new VehicleSlot
+                        using (var tempConn = new MySqlConnection(connString))
                         {
-                            VehicleId = 0,
-                            CapacityKg = rentalCapacity,
-                            RemainingKg = rentalCapacity,
-                            IsRented = true,
-                            RentalCost = rentalCost,
-                            FuelCostPerKm = 0
-                        });
+                            await tempConn.OpenAsync();
+                            while (initial.Count < maxVehicles)
+                            {
+                                var rentedSlot = await AddRentedSlotAsync(tempConn);
+                                initial.Add(rentedSlot);
+                            }
+                        }
                     }
                     slots = initial;
 
-                    // se�im stratejisi
+                    // se�im stratejisi - CO�RAF� + A�IRLIK
                     if (objective == "maxCount")
                     {
-                        candidateShipments = candidateShipments.OrderBy(s => s.WeightKg).ToList(); // k���k a��rl�k �nce
+                        // Coğrafi sıralama (Longitude), sonra ağırlık (küçük önce)
+                        candidateShipments = candidateShipments
+                            .OrderBy(s => s.Lng)  // Batıdan doğuya
+                            .ThenBy(s => s.WeightKg)
+                            .ToList();
                     }
                     else // maxWeight
                     {
-                        candidateShipments = candidateShipments.OrderByDescending(s => s.WeightKg).ToList();
+                        // Coğrafi sıralama (Longitude), sonra ağırlık (büyük önce)
+                        candidateShipments = candidateShipments
+                            .OrderBy(s => s.Lng)  // Batıdan doğuya
+                            .ThenByDescending(s => s.WeightKg)
+                            .ToList();
                     }
                 }
                 else // unlimited
                 {
-                    // unlimited: sort heavy first for packing
-                    candidateShipments = candidateShipments.OrderByDescending(s => s.WeightKg).ToList();
+                    // unlimited: A�IR KARGOLAR �NCE (First-Fit Decreasing)
+                    candidateShipments = candidateShipments
+                        .OrderByDescending(s => s.WeightKg)  // Ağır kargolar önce
+                        .ThenBy(s => s.Lng)  // Aynı ağırlıkta olanlar coğrafi sırada
+                        .ToList();
                 }
 
-                // assignment: First-Fit per shipment
-                var assignment = new Dictionary<VehicleSlot, List<(long ShipmentId, int StationId, int WeightKg, int UserId)>>();
-
+                // ÖNCE BÜYÜK KARGOLARI ATA (First-Fit Decreasing)
+                var assignment = new Dictionary<VehicleSlot, List<(long ShipmentId, int StationId, int WeightKg, int UserId, int Quantity)>>();
+                var cargoToVehicle = new Dictionary<long, VehicleSlot>();
+                
+                // İlk geçiş: Büyük kargoları doğrudan ata
                 foreach (var sh in candidateShipments)
                 {
-                    // in limited mode with objective and maxVehicles, we used restricted slots list length
-                    var placed = false;
-                    // try vehicles that already have same station (minimize extra stops)
-                    var pref = slots.Where(s => s.RemainingKg >= sh.WeightKg)
-                                    .OrderBy(s => assignment.ContainsKey(s) && assignment[s].Any(a => a.StationId == sh.StationId) ? 0 : 1)
-                                    .ThenByDescending(s => s.RemainingKg)
-                                    .FirstOrDefault();
-                    if (pref != null)
+                    var vehicle = slots.FirstOrDefault(s => s.RemainingKg >= sh.WeightKg);
+                    if (vehicle != null)
                     {
-                        if (!assignment.ContainsKey(pref)) assignment[pref] = new List<(long, int, int, int)>();
-                        assignment[pref].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId));
-                        pref.RemainingKg -= sh.WeightKg;
-                        placed = true;
+                        if (!assignment.ContainsKey(vehicle)) assignment[vehicle] = new List<(long, int, int, int, int)>();
+                        assignment[vehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
+                        vehicle.RemainingKg -= sh.WeightKg;
+                        cargoToVehicle[sh.Id] = vehicle;
                     }
-
-                    if (!placed)
+                    else if (mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
                     {
-                        // if unlimited: create rented slot and place
-                        if (mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                        // Kiralık araç ekle
+                        if (sh.WeightKg <= 500)
                         {
-                            AddRentedSlot();
-                            var last = slots.Last();
-                            assignment[last] = new List<(long, int, int, int)> { (sh.Id, sh.StationId, sh.WeightKg, sh.UserId) };
-                            last.RemainingKg -= sh.WeightKg;
-                            placed = true;
+                            VehicleSlot rentedVehicle;
+                            using (var tempConn = new MySqlConnection(connString))
+                            {
+                                await tempConn.OpenAsync();
+                                rentedVehicle = await AddRentedSlotAsync(tempConn);
+                            }
+                            slots.Add(rentedVehicle);
+                            if (!assignment.ContainsKey(rentedVehicle)) assignment[rentedVehicle] = new List<(long, int, int, int, int)>();
+                            assignment[rentedVehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
+                            rentedVehicle.RemainingKg -= sh.WeightKg;
+                            cargoToVehicle[sh.Id] = rentedVehicle;
                         }
                         else
                         {
-                            // limited: if cannot place -> skip this shipment (objective-driven)
-                            // continue to next shipment
-                            continue;
+                            // Bu kargo hiçbir araca sığmıyor - atlanacak
                         }
                     }
                 }
@@ -281,37 +323,43 @@ namespace YazLab2.Controllers
                             // build polyline and compute distance
                             var fullPoints = new List<double[]>();
                             double totalKm = 0.0;
-                            double lastLat = depotLat, lastLng = depotLng;
+                            
+                            // Araç ilk istasyondan (en uzak) başlıyor - Depodan çıkmıyor
+                            // Sadece istasyonlar arası mesafeler hesaplanıyor
 
-                            foreach (var sid in ordered)
+                            // Ara istasyonlar: Nearest Neighbor sırası
+                            for (int i = 0; i < ordered.Count - 1; i++)
                             {
-                                // use open connection helper to get lat/lng
-                                var (lat, lng) = await GetStationLatLngFromOpenConnection(conn, sid);
-                                var routeInfo = await GetRouteFromOsrmAsync(lastLat, lastLng, lat, lng);
+                                var (fromLat, fromLng) = await GetStationLatLngFromOpenConnection(conn, ordered[i]);
+                                var (toLat, toLng) = await GetStationLatLngFromOpenConnection(conn, ordered[i + 1]);
+                                var routeInfo = await GetRouteFromOsrmAsync(fromLat, fromLng, toLat, toLng);
                                 totalKm += routeInfo.distanceKm;
-                                if (fullPoints.Count > 0 && routeInfo.polyline.Count > 0)
+                                if (routeInfo.polyline.Count > 0)
                                 {
-                                    if (!PointsEqual(fullPoints.Last(), routeInfo.polyline.First()))
+                                    if (fullPoints.Count > 0 && !PointsEqual(fullPoints.Last(), routeInfo.polyline.First()))
                                         fullPoints.AddRange(routeInfo.polyline);
-                                    else
+                                    else if (fullPoints.Count > 0)
                                         fullPoints.AddRange(routeInfo.polyline.Skip(1));
+                                    else
+                                        fullPoints.AddRange(routeInfo.polyline);
                                 }
-                                else
-                                {
-                                    fullPoints.AddRange(routeInfo.polyline);
-                                }
-                                lastLat = lat; lastLng = lng;
                             }
 
-                            // return to depot
-                            var returnRoute = await GetRouteFromOsrmAsync(lastLat, lastLng, depotLat, depotLng);
-                            totalKm += returnRoute.distanceKm;
-                            if (returnRoute.polyline.Count > 0)
+                            // Son mesafe: Son istasyondan KOU MERKEZ'e dönüş (varış noktası)
+                            if (ordered.Count > 0)
                             {
-                                if (!PointsEqual(fullPoints.Last(), returnRoute.polyline.First()))
-                                    fullPoints.AddRange(returnRoute.polyline);
-                                else
-                                    fullPoints.AddRange(returnRoute.polyline.Skip(1));
+                                var (lastLat, lastLng) = await GetStationLatLngFromOpenConnection(conn, ordered[ordered.Count - 1]);
+                                var returnRoute = await GetRouteFromOsrmAsync(lastLat, lastLng, depotLat, depotLng);
+                                totalKm += returnRoute.distanceKm;
+                                if (returnRoute.polyline.Count > 0)
+                                {
+                                    if (fullPoints.Count > 0 && !PointsEqual(fullPoints.Last(), returnRoute.polyline.First()))
+                                        fullPoints.AddRange(returnRoute.polyline);
+                                    else if (fullPoints.Count > 0)
+                                        fullPoints.AddRange(returnRoute.polyline.Skip(1));
+                                    else
+                                        fullPoints.AddRange(returnRoute.polyline);
+                                }
                             }
 
                             double roadCost = totalKm * 1.0;
@@ -417,13 +465,31 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
             return Math.Abs(a[0] - b[0]) < 1e-6 && Math.Abs(a[1] - b[1]) < 1e-6;
         }
 
-        // Nearest neighbor uses open connection to avoid connString redaction issues
-        private async Task<List<int>> NearestNeighborOrder(List<int> stationIds, double startLat, double startLng, MySqlConnection conn)
+        // Furthest First with Fixed End: En uzak istasyondan başla, KOU MERKEZ'de bitir
+        private async Task<List<int>> NearestNeighborOrder(List<int> stationIds, double depotLat, double depotLng, MySqlConnection conn)
         {
+            if (stationIds.Count == 0) return new List<int>();
+            if (stationIds.Count == 1) return new List<int> { stationIds[0] };
+
             var remaining = new HashSet<int>(stationIds);
             var order = new List<int>();
-            double curLat = startLat, curLng = startLng;
 
+            // 1. Depodan EN UZAK istasyonu bul (başlangıç noktası)
+            int furthestId = -1;
+            double furthestDist = 0;
+            foreach (var sid in remaining)
+            {
+                var (lat, lng) = await GetStationLatLngFromOpenConnection(conn, sid);
+                double d = HaversineKm(depotLat, depotLng, lat, lng);
+                if (d > furthestDist) { furthestDist = d; furthestId = sid; }
+            }
+
+            // 2. En uzak istasyonu başlangıç noktası yap
+            order.Add(furthestId);
+            remaining.Remove(furthestId);
+            var (curLat, curLng) = await GetStationLatLngFromOpenConnection(conn, furthestId);
+
+            // 3. Nearest Neighbor ile devam et
             while (remaining.Count > 0)
             {
                 int bestId = -1;
@@ -440,6 +506,8 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
                 var (nlat, nlng) = await GetStationLatLngFromOpenConnection(conn, bestId);
                 curLat = nlat; curLng = nlng;
             }
+
+            // 4. Rota: En uzak istasyon → ... → Son istasyon (KOU MERKEZ'e en yakın)
             return order;
         }
 

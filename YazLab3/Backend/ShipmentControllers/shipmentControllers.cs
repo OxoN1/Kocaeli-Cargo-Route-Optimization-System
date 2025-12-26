@@ -88,32 +88,29 @@ namespace YazLab2.Controllers
                     }
 
                     const string insertSql = @"
-INSERT INTO Shipments (UserId, StationId, WeightKg, Content, ShipDate, Status)
-VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending');";
+INSERT INTO Shipments (UserId, StationId, WeightKg, Content, ShipDate, Status, Quantity)
+VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending', @quantity);
+SELECT LAST_INSERT_ID();";
 
-                    var shipmentIds = new List<long>();
-                    
-                    // Quantity kadar ayrı satır oluştur
-                    for (int i = 0; i < request.Quantity; i++)
+                    long shipmentId;
+                    using (var insertCmd = new MySqlCommand(insertSql, connection))
                     {
-                        using (var insertCmd = new MySqlCommand(insertSql + " SELECT LAST_INSERT_ID();", connection))
-                        {
-                            insertCmd.Parameters.AddWithValue("@userId", userId);
-                            insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
-                            insertCmd.Parameters.AddWithValue("@weightKg", request.WeightKg);
-                            insertCmd.Parameters.AddWithValue("@content", request.Content);
-                            insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
+                        insertCmd.Parameters.AddWithValue("@userId", userId);
+                        insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
+                        insertCmd.Parameters.AddWithValue("@weightKg", request.WeightKg);
+                        insertCmd.Parameters.AddWithValue("@content", request.Content);
+                        insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
+                        insertCmd.Parameters.AddWithValue("@quantity", request.Quantity);
 
-                            var idObj = insertCmd.ExecuteScalar();
-                            shipmentIds.Add(Convert.ToInt64(idObj));
-                        }
+                        var idObj = insertCmd.ExecuteScalar();
+                        shipmentId = Convert.ToInt64(idObj);
                     }
 
                     return Ok(new
                     {
                         mesaj = $"Kargo talebi alındı. {request.Quantity} adet kargo oluşturuldu.",
-                        shipmentIds,
-                        totalShipments = shipmentIds.Count,
+                        shipmentId,
+                        quantity = request.Quantity,
                         shipDate = tomorrow.ToString("yyyy-MM-dd"),
                         status = "Pending",
                     });

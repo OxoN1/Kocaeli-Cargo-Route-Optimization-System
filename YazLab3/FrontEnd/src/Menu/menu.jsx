@@ -60,6 +60,9 @@ function MapPage() {
   const [fromStationId, setFromStationId] = useState("");
   const [toStationId, setToStationId] = useState("");
   const [routeMsg, setRouteMsg] = useState("");
+  
+  // Araç kiralama checkbox
+  const [allowRental, setAllowRental] = useState(true);
 
   // UI control: panel açık/kapalı
   const [openShipmentPanel, setOpenShipmentPanel] = useState(false);
@@ -313,7 +316,11 @@ function MapPage() {
         return;
       }
 
-      const response = await fetch("http://localhost:5000/api/tripplanner/plan-next-day", {
+      // Araç kiralama izni yoksa mode=limited, maxVehicles=3 gönder
+      const mode = allowRental ? "unlimited" : "limited";
+      const maxVehicles = allowRental ? 0 : 3;
+      
+      const response = await fetch(`http://localhost:5000/api/tripplanner/plan-next-day?mode=${mode}&maxVehicles=${maxVehicles}`, {
         method: "POST",
       });
 
@@ -839,6 +846,19 @@ function MapPage() {
             <>
               <hr style={{ margin: "8px 0", borderColor: "rgba(255,255,255,0.06)" }} />
               <strong>Plan Sonuçları</strong>
+              
+              <div className="toggle-container" style={{ marginTop: 8, marginBottom: 8 }}>
+                <label className="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={allowRental} 
+                    onChange={(e) => setAllowRental(e.target.checked)}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <span className="toggle-label">Araç Kiralanabilir</span>
+              </div>
+              
               <div style={{ marginTop: 8 }}>
                 <button onClick={planAllShipments}>Tüm Kargoları Planla</button>
                 <button onClick={clearPlans} style={{ marginLeft: 8 }}>Planları Temizle</button>
@@ -984,7 +1004,7 @@ function MapPage() {
                       {shipment.totalDistanceKm && (
                         <div><strong>Mesafe:</strong> {Number(shipment.totalDistanceKm).toFixed(2)} km</div>
                       )}
-                      {shipment.totalCost && (
+                      {isAdmin && shipment.totalCost && (
                         <div><strong>Maliyet:</strong> {Number(shipment.totalCost).toFixed(2)} TL</div>
                       )}
                     </div>

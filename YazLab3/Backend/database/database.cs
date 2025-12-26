@@ -104,6 +104,7 @@ public static class Database
                     Content VARCHAR(200) DEFAULT '',
                     ShipDate DATE NOT NULL,
                     Status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+                    Quantity INT NOT NULL DEFAULT 1,
                     CreatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (UserId) REFERENCES Users(Id),
                     FOREIGN KEY (StationId) REFERENCES Stations(Id)
