@@ -42,6 +42,7 @@ function ForgotPassword() {
 
     return (
       <div className="auth-wrapper">
+        <div className="auth-overlay"></div>
         <div className="register-container">
             <div className="forgot-card">
                 <button className="back-link" onClick={() => navigate(-1)}>← Geri</button>

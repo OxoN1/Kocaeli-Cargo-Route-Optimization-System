@@ -50,6 +50,7 @@ function Login() {
 
   return (
     <div className="auth-wrapper">
+      <div className="auth-overlay"></div>
       <div className="ana-kutu">
         <h1>Giriş Yap</h1>
         

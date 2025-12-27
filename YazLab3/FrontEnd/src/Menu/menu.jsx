@@ -56,6 +56,16 @@ function MapPage() {
   const [newStationLng, setNewStationLng] = useState("");
   const [adminMsg, setAdminMsg] = useState("");
 
+  // Yeni: İstasyon kargo istatistikleri (Admin için)
+  const [stationStats, setStationStats] = useState([]);
+  const [statsMsg, setStatsMsg] = useState("");
+
+  // Yeni: Araç yönetimi (Admin için)
+  const [vehicles, setVehicles] = useState([]);
+  const [vehiclesMsg, setVehiclesMsg] = useState("");
+  const [openVehiclesPanel, setOpenVehiclesPanel] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
+
   // Yeni: Route draw panel
   const [fromStationId, setFromStationId] = useState("");
   const [toStationId, setToStationId] = useState("");
@@ -73,7 +83,7 @@ function MapPage() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // herhangi bir panel açık mı? -> FAB'ları gizlemek için
-  const anyPanelOpen = openShipmentPanel || openAdminPanel || openRoutePanel || openRoutesPanel || openMyShipmentsPanel;
+  const anyPanelOpen = openShipmentPanel || openAdminPanel || openRoutePanel || openRoutesPanel || openMyShipmentsPanel || openVehiclesPanel;
 
   const fetchStations = async () => {
     try {
@@ -265,6 +275,80 @@ function MapPage() {
     }
   };
 
+  // Yeni: İstasyon istatistiklerini getir
+  const fetchStationStats = async () => {
+    try {
+      setStatsMsg("Yükleniyor...");
+      setStationStats([]);
+
+      const response = await fetch("http://localhost:5000/api/shipments/station-stats");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setStatsMsg("Hata: " + (data?.mesaj || "İstatistikler yüklenemedi."));
+        return;
+      }
+
+      setStationStats(data.stats || []);
+      setStatsMsg(data.mesaj || "İstatistikler yüklendi.");
+    } catch (e) {
+      console.error(e);
+      setStatsMsg("Sunucuya bağlanılamadı.");
+    }
+  };
+
+  // Yeni: Araçları getir
+  const fetchVehicles = async () => {
+    try {
+      setVehiclesMsg("Yükleniyor...");
+      setVehicles([]);
+
+      const response = await fetch("http://localhost:5000/api/vehicle/vehicles");
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setVehiclesMsg("Hata: " + (data?.mesaj || "Araçlar yüklenemedi."));
+        return;
+      }
+
+      setVehicles(data.vehicles || []);
+      setVehiclesMsg(data.mesaj || "Araçlar yüklendi.");
+    } catch (e) {
+      console.error(e);
+      setVehiclesMsg("Sunucuya bağlanılamadı.");
+    }
+  };
+
+  // Yeni: Araç güncelle
+  const updateVehicle = async (vehicleId) => {
+    try {
+      if (!editingVehicle) return;
+
+      const response = await fetch(`http://localhost:5000/api/vehicle/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingVehicle.name,
+          capacityKg: editingVehicle.capacityKg
+        })
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setVehiclesMsg("Hata: " + (data?.mesaj || "Araç güncellenemedi."));
+        return;
+      }
+
+      setVehiclesMsg(data.mesaj || "Araç güncellendi.");
+      setEditingVehicle(null);
+      await fetchVehicles();
+    } catch (e) {
+      console.error(e);
+      setVehiclesMsg("Sunucuya bağlanılamadı.");
+    }
+  };
+
   const drawRoute = async () => {
     try {
       setRouteMsg("");
@@ -332,7 +416,16 @@ function MapPage() {
       }
 
       setTrips(data.plans || []);
-      setPlanMsg(data.mesaj || "Planlama tamamlandı.");
+      
+      // Toplam maliyet hesapla
+      const totalCost = (data.plans || []).reduce((sum, plan) => sum + (plan.totalCost || 0), 0);
+      const totalDistance = (data.plans || []).reduce((sum, plan) => sum + (plan.distanceKm || 0), 0);
+      const totalVehicles = (data.plans || []).length;
+      
+      setPlanMsg(
+        `${data.mesaj || "Planlama tamamlandı."}\n` +
+        `📦 ${totalVehicles} sefer | 📏 ${totalDistance.toFixed(2)} km | 💰 Toplam: ${totalCost.toFixed(2)} TL`
+      );
     } catch (e) {
       console.error(e);
       setPlanMsg("Sunucuya bağlanılamadı.");
@@ -415,28 +508,30 @@ function MapPage() {
       
       console.log("Rota bilgisi:", route);
 
-      // Eğer kargoların istasyonları varsa, bu istasyonlar arası rotayı çiz
-      if (!route.shipments || route.shipments.length === 0) {
-        setRoutesMsg("Bu rotada kargo bulunamadı.");
+      // Backend'den gelen stationOrder'ı kullan (istasyon isimleri yerine ID'lere çevir)
+      if (!route.stationOrder || route.stationOrder.length === 0) {
+        setRoutesMsg("Bu rotada istasyon sırası bulunamadı.");
         return;
       }
 
-      // Kargoların istasyonlarını unique olarak al ve sırala
-      const uniqueStations = [...new Set(route.shipments.map(s => s.stationId))];
-      console.log("Unique istasyon ID'leri:", uniqueStations);
+      // Eğer stationOrder string ise (istasyon isimleri), ID'lere çevir
+      let routeStationIds;
+      if (typeof route.stationOrder[0] === 'string') {
+        // İstasyon isimlerinden ID'lere çevir
+        routeStationIds = route.stationOrder
+          .map(name => stations.find(s => s.name === name)?.id)
+          .filter(id => id !== undefined);
+      } else {
+        // Zaten ID formatında
+        routeStationIds = route.stationOrder;
+      }
       
-      if (uniqueStations.length === 0) {
+      console.log("Backend'den gelen istasyon sırası:", routeStationIds);
+      
+      if (routeStationIds.length === 0) {
         setRoutesMsg("İstasyon bilgisi bulunamadı.");
         return;
       }
-
-      // KOU MERKEZ istasyonunu bul (depot)
-      const depotStation = stations.find(s => s.name === "KOU MERKEZ") || stations[0];
-      console.log("Depot istasyonu:", depotStation);
-
-      // Rota: Depot -> İstasyon1 -> İstasyon2 -> ... (gidiş yolu)
-      const routeStationIds = [depotStation.id, ...uniqueStations];
-      console.log("Çizilecek rota istasyonları:", routeStationIds);
 
       // Birden fazla istasyon varsa, sırayla rotaları çiz
       let allPoints = [];
@@ -474,11 +569,45 @@ function MapPage() {
         }
       }
 
+      // Son istasyondan KOU MERKEZ'e dönüş rotasını çiz
+      if (routeStationIds.length > 0) {
+        const lastStationId = routeStationIds[routeStationIds.length - 1];
+        const depotStation = stations.find(s => s.name === "KOU MERKEZ") || stations[0];
+        
+        if (depotStation) {
+          console.log(`Dönüş rotası çiziliyor: ${lastStationId} -> ${depotStation.id} (KOU MERKEZ)`);
+          
+          const url = `http://localhost:5000/api/routing/route?fromStationId=${lastStationId}&toStationId=${depotStation.id}`;
+          const response = await fetch(url);
+          const data = await response.json().catch(() => null);
+
+          console.log(`Dönüş rotası sonucu:`, data);
+
+          if (response.ok && data.polyline && data.polyline.length > 0) {
+            totalDistance += data.distanceKm || 0;
+            
+            if (allPoints.length > 0) {
+              const lastPoint = allPoints[allPoints.length - 1];
+              const firstPoint = data.polyline[0];
+              if (lastPoint[0] === firstPoint[0] && lastPoint[1] === firstPoint[1]) {
+                allPoints = allPoints.concat(data.polyline.slice(1));
+              } else {
+                allPoints = allPoints.concat(data.polyline);
+              }
+            } else {
+              allPoints = data.polyline;
+            }
+          } else {
+            console.error(`Dönüş rotası çizilemedi`);
+          }
+        }
+      }
+
       console.log("Toplam nokta sayısı:", allPoints.length);
 
       if (allPoints.length > 0) {
         setPath(allPoints);
-        setRoutesMsg(`Rota haritada gösteriliyor (${uniqueStations.length} istasyon, ${totalDistance.toFixed(2)} km)`);
+        setRoutesMsg(`Rota haritada gösteriliyor (${routeStationIds.length} istasyon, ${totalDistance.toFixed(2)} km)`);
       } else {
         setRoutesMsg("Rota çizilemedi. Konsolu kontrol edin.");
       }
@@ -570,6 +699,7 @@ function MapPage() {
         setOpenRoutePanel(false);
         setOpenRoutesPanel(false);
         setOpenMyShipmentsPanel(false);
+        setOpenVehiclesPanel(false);
       }
     } else if (panelName === 'admin') {
       if (openAdminPanel) {
@@ -580,6 +710,18 @@ function MapPage() {
         setOpenRoutePanel(false);
         setOpenRoutesPanel(false);
         setOpenMyShipmentsPanel(false);
+        setOpenVehiclesPanel(false);
+      }
+    } else if (panelName === 'vehicles') {
+      if (openVehiclesPanel) {
+        setOpenVehiclesPanel(false);
+      } else {
+        setOpenShipmentPanel(false);
+        setOpenAdminPanel(false);
+        setOpenRoutePanel(false);
+        setOpenRoutesPanel(false);
+        setOpenMyShipmentsPanel(false);
+        setOpenVehiclesPanel(true);
       }
     } else if (panelName === 'route') {
       if (openRoutePanel) {
@@ -590,6 +732,7 @@ function MapPage() {
         setOpenRoutePanel(true);
         setOpenRoutesPanel(false);
         setOpenMyShipmentsPanel(false);
+        setOpenVehiclesPanel(false);
       }
     } else if (panelName === 'routes') {
       if (openRoutesPanel) {
@@ -600,6 +743,7 @@ function MapPage() {
         setOpenRoutePanel(false);
         setOpenRoutesPanel(true);
         setOpenMyShipmentsPanel(false);
+        setOpenVehiclesPanel(false);
         fetchAllRoutes();
       }
     } else if (panelName === 'myshipments') {
@@ -611,6 +755,7 @@ function MapPage() {
         setOpenRoutePanel(false);
         setOpenRoutesPanel(false);
         setOpenMyShipmentsPanel(true);
+        setOpenVehiclesPanel(false);
         fetchMyShipments();
       }
     }
@@ -631,7 +776,7 @@ function MapPage() {
                 opacity: openShipmentPanel ? 1 : 0.9
               }}
             >
-              📦 Kargo Talebi
+              {isAdmin ? "📊 Kargo İstatistikleri" : "📦 Kargo Talebi"}
             </button>
 
             {!isAdmin && (
@@ -658,6 +803,16 @@ function MapPage() {
                   }}
                 >
                   ➕ İstasyon Ekle
+                </button>
+                <button 
+                  className="navbar-button" 
+                  onClick={() => togglePanel('vehicles')}
+                  style={{ 
+                    backgroundColor: openVehiclesPanel ? "#7c2d12" : "#ea580c",
+                    opacity: openVehiclesPanel ? 1 : 0.9
+                  }}
+                >
+                  🚚 Araçlar
                 </button>
                 <button 
                   className="navbar-button" 
@@ -717,53 +872,99 @@ function MapPage() {
       {/* Slide-in yan paneller */}
       <div className={`side-panel ${openShipmentPanel ? "open" : ""}`}>
         <div className="side-panel-header">
-          <strong>Kargo Talebi</strong>
+          <strong>{isAdmin ? "Kargo İstatistikleri (Admin)" : "Kargo Talebi"}</strong>
         </div>
         <div className="side-panel-body">
-          <label>İstasyon:</label>
-          <select
-            value={selectedStationId}
-            onChange={(e) => setSelectedStationId(e.target.value)}
-          >
-            {stations.map((s) => (
-              <option key={s.id} value={String(s.id)}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          {isAdmin ? (
+            <>
+              <div style={{ marginBottom: 12 }}>
+                <button onClick={fetchStationStats} style={{ width: "100%" }}>
+                  📊 İstatistikleri Yükle
+                </button>
+              </div>
 
-          <label>Kargo İçeriği:</label>
-          <input
-            type="text"
-            value={cargoContent}
-            onChange={(e) => setCargoContent(e.target.value)}
-            placeholder="Örn: Elektronik, Gıda, Tekstil"
-          />
+              {statsMsg && <div className="panel-msg">{statsMsg}</div>}
 
-          <label>Adet:</label>
-          <input
-            type="number"
-            value={cargoQuantity}
-            onChange={(e) => setCargoQuantity(e.target.value)}
-            min="1"
-          />
+              <div style={{ marginTop: 8, overflowY: "auto", maxHeight: "450px" }}>
+                {stationStats.length === 0 && <div style={{ color: "#bbb" }}>İstatistik yok</div>}
+                {stationStats.map((stat, idx) => (
+                  <div key={`stat-${idx}`} style={{ 
+                    padding: 10, 
+                    marginBottom: 8,
+                    borderBottom: "1px solid rgba(255,255,255,0.1)",
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                    borderRadius: 4
+                  }}>
+                    <div style={{ fontSize: "1em", fontWeight: "bold", color: "#60a5fa", marginBottom: 4 }}>
+                      📍 {stat.stationName}
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#ddd" }}>
+                      <strong>Toplam Kargo:</strong> {stat.totalShipments} adet
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#ddd" }}>
+                      <strong>Toplam Ağırlık:</strong> {stat.totalWeightKg} kg
+                    </div>
+                    <div style={{ fontSize: "0.85em", color: "#aaa", marginTop: 4 }}>
+                      • Bekleyen: {stat.pendingCount} | Atanan: {stat.assignedCount}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-          <label>Ağırlık (kg):</label>
-          <input
-            type="number"
-            value={weightKg}
-            onChange={(e) => setWeightKg(e.target.value)}
-            min="1"
-          />
+              <div style={{ marginTop: 12 }}>
+                <button onClick={() => togglePanel('shipment')} style={{ width: "100%" }}>
+                  Kapat
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label>İstasyon:</label>
+              <select
+                value={selectedStationId}
+                onChange={(e) => setSelectedStationId(e.target.value)}
+              >
+                {stations.map((s) => (
+                  <option key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
 
-          <div style={{ marginTop: 8 }}>
-            <button onClick={submitShipment}>Kargo Talebi Gönder</button>
-            <button onClick={() => togglePanel('shipment')} style={{ marginLeft: 8 }}>
-              Kapat
-            </button>
-          </div>
+              <label>Kargo İçeriği:</label>
+              <input
+                type="text"
+                value={cargoContent}
+                onChange={(e) => setCargoContent(e.target.value)}
+                placeholder="Örn: Elektronik, Gıda, Tekstil"
+              />
 
-          {submitMsg && <div className="panel-msg">{submitMsg}</div>}
+              <label>Adet:</label>
+              <input
+                type="number"
+                value={cargoQuantity}
+                onChange={(e) => setCargoQuantity(e.target.value)}
+                min="1"
+              />
+
+              <label>Ağırlık (kg):</label>
+              <input
+                type="number"
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                min="1"
+              />
+
+              <div style={{ marginTop: 8 }}>
+                <button onClick={submitShipment}>Kargo Talebi Gönder</button>
+                <button onClick={() => togglePanel('shipment')} style={{ marginLeft: 8 }}>
+                  Kapat
+                </button>
+              </div>
+
+              {submitMsg && <div className="panel-msg">{submitMsg}</div>}
+            </>
+          )}
         </div>
       </div>
 
@@ -803,6 +1004,89 @@ function MapPage() {
           </div>
 
           {adminMsg && <div className="panel-msg">{adminMsg}</div>}
+        </div>
+      </div>
+
+      {/* Araçlar Paneli */}
+      <div className={`side-panel ${openVehiclesPanel ? "open" : ""}`}>
+        <div className="side-panel-header">
+          <strong>Araç Yönetimi (Admin)</strong>
+        </div>
+        <div className="side-panel-body">
+          <div style={{ marginBottom: 12 }}>
+            <button onClick={fetchVehicles} style={{ width: "100%" }}>
+              🚚 Araçları Yükle
+            </button>
+          </div>
+
+          {vehiclesMsg && <div className="panel-msg">{vehiclesMsg}</div>}
+
+          <div style={{ marginTop: 8, overflowY: "auto", maxHeight: "450px" }}>
+            {vehicles.length === 0 && <div style={{ color: "#bbb" }}>Araç yok</div>}
+            {vehicles.map((vehicle) => (
+              <div key={`vehicle-${vehicle.id}`} style={{ 
+                padding: 10, 
+                marginBottom: 8,
+                borderBottom: "1px solid rgba(255,255,255,0.1)",
+                backgroundColor: editingVehicle?.id === vehicle.id ? "rgba(234, 88, 12, 0.2)" : "rgba(0,0,0,0.2)",
+                borderRadius: 4
+              }}>
+                {editingVehicle?.id === vehicle.id ? (
+                  <>
+                    <div style={{ fontSize: "0.9em", marginBottom: 8 }}>
+                      <label style={{ display: "block", color: "#aaa", fontSize: "0.8em" }}>İsim:</label>
+                      <input
+                        type="text"
+                        value={editingVehicle.name}
+                        onChange={(e) => setEditingVehicle({...editingVehicle, name: e.target.value})}
+                        style={{ width: "100%", padding: "4px", marginTop: "2px" }}
+                      />
+                    </div>
+                    <div style={{ fontSize: "0.9em", marginBottom: 8 }}>
+                      <label style={{ display: "block", color: "#aaa", fontSize: "0.8em" }}>Kapasite (kg):</label>
+                      <input
+                        type="number"
+                        value={editingVehicle.capacityKg}
+                        onChange={(e) => setEditingVehicle({...editingVehicle, capacityKg: Number(e.target.value)})}
+                        style={{ width: "100%", padding: "4px", marginTop: "2px" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", marginTop: 12 }}>
+                      <button onClick={() => updateVehicle(vehicle.id)} style={{ flex: 1, fontSize: "0.85em", padding: "6px" }}>
+                        ✅ Kaydet
+                      </button>
+                      <button onClick={() => setEditingVehicle(null)} style={{ flex: 1, fontSize: "0.85em", padding: "6px", backgroundColor: "#666" }}>
+                        ❌ İptal
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: "1em", fontWeight: "bold", color: "#ea580c", marginBottom: 4 }}>
+                      🚚 {vehicle.name}
+                    </div>
+                    <div style={{ fontSize: "0.9em", color: "#ddd" }}>
+                      <strong>Kapasite:</strong> {vehicle.capacityKg} kg
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <button 
+                        onClick={() => setEditingVehicle(vehicle)} 
+                        style={{ fontSize: "0.85em", padding: "4px 8px", width: "100%" }}
+                      >
+                        ✏️ Düzenle
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12 }}>
+            <button onClick={() => togglePanel('vehicles')} style={{ width: "100%" }}>
+              Kapat
+            </button>
+          </div>
         </div>
       </div>
 

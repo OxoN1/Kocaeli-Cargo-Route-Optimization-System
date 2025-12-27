@@ -474,22 +474,26 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
             var remaining = new HashSet<int>(stationIds);
             var order = new List<int>();
 
-            // 1. Depodan EN UZAK istasyonu bul (başlangıç noktası)
+            // 1. Depodan EN UZAK istasyonu bul (GERÇEK YOL MESAFESİNE GÖRE - OSRM)
             int furthestId = -1;
             double furthestDist = 0;
             foreach (var sid in remaining)
             {
                 var (lat, lng) = await GetStationLatLngFromOpenConnection(conn, sid);
-                double d = HaversineKm(depotLat, depotLng, lat, lng);
+                // OSRM ile gerçek yol mesafesini hesapla
+                var routeInfo = await GetRouteFromOsrmAsync(depotLat, depotLng, lat, lng);
+                double d = routeInfo.distanceKm;
+                Console.WriteLine($"[DEBUG] İstasyon {sid} -> Depodan uzaklık: {d:F2} km");
                 if (d > furthestDist) { furthestDist = d; furthestId = sid; }
             }
+            Console.WriteLine($"[DEBUG] En uzak istasyon seçildi: {furthestId} ({furthestDist:F2} km)");
 
             // 2. En uzak istasyonu başlangıç noktası yap
             order.Add(furthestId);
             remaining.Remove(furthestId);
             var (curLat, curLng) = await GetStationLatLngFromOpenConnection(conn, furthestId);
 
-            // 3. Nearest Neighbor ile devam et
+            // 3. Nearest Neighbor ile devam et (GERÇEK YOL MESAFESİ KULLAN)
             while (remaining.Count > 0)
             {
                 int bestId = -1;
@@ -497,15 +501,20 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
                 foreach (var sid in remaining)
                 {
                     var (lat, lng) = await GetStationLatLngFromOpenConnection(conn, sid);
-                    double d = HaversineKm(curLat, curLng, lat, lng);
+                    // OSRM ile gerçek yol mesafesini hesapla
+                    var routeInfo = await GetRouteFromOsrmAsync(curLat, curLng, lat, lng);
+                    double d = routeInfo.distanceKm;
                     if (d < bestDist) { bestDist = d; bestId = sid; }
                 }
                 if (bestId == -1) break;
+                Console.WriteLine($"[DEBUG] Bir sonraki en yakın istasyon: {bestId} ({bestDist:F2} km)");
                 order.Add(bestId);
                 remaining.Remove(bestId);
                 var (nlat, nlng) = await GetStationLatLngFromOpenConnection(conn, bestId);
                 curLat = nlat; curLng = nlng;
             }
+
+            Console.WriteLine($"[DEBUG] Final rota sırası: {string.Join(" → ", order)}");
 
             // 4. Rota: En uzak istasyon → ... → Son istasyon (KOU MERKEZ'e en yakın)
             return order;
@@ -670,12 +679,25 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
 
                         rdrShip.Close();
 
-                        // Kargoların istasyon ID'lerinden unique bir liste oluştur
-                        var stationOrderList = shipments
-                            .Select(s => ((dynamic)s).stationId)
-                            .Cast<int>()
-                            .Distinct()
-                            .ToList();
+                        // TripStops tablosundan doğru istasyon sırasını çek (istasyon isimleriyle)
+                        const string sqlStops = @"
+                            SELECT ts.StationId, st.StationName
+                            FROM TripStops ts
+                            INNER JOIN Stations st ON ts.StationId = st.Id
+                            WHERE ts.TripId = @tripId
+                            ORDER BY ts.StopOrder;";
+
+                        var stationOrderList = new List<string>();
+                        using var cmdStops = new MySqlCommand(sqlStops, conn);
+                        cmdStops.Parameters.AddWithValue("@tripId", trip.TripId);
+                        using var rdrStops = await cmdStops.ExecuteReaderAsync();
+
+                        while (await rdrStops.ReadAsync())
+                        {
+                            stationOrderList.Add(rdrStops.GetString(rdrStops.GetOrdinal("StationName")));
+                        }
+
+                        rdrStops.Close();
 
                         // Polyline bilgisi tabloda yok, boş liste gönder
                         var polylineList = new List<double[]>();

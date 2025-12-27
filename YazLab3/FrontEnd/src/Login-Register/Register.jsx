@@ -33,6 +33,7 @@ function Register() {
 
     return (
     <div className="auth-wrapper">
+        <div className="auth-overlay"></div>
         <div className="register-container">
           <button className="back-button" onClick={() => navigate(-1)}>← Geri</button>
           <h2>Kayit Ol</h2>

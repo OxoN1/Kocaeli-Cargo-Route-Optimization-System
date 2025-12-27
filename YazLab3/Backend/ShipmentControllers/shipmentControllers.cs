@@ -121,5 +121,67 @@ SELECT LAST_INSERT_ID();";
                 return StatusCode(500, new { mesaj = "Sunucu hatası: " + ex.Message });
             }
         }
+
+        // Yeni: İstasyonlara göre kargo istatistikleri (Admin için)
+        [HttpGet("station-stats")]
+        public IActionResult GetStationStats()
+        {
+            try
+            {
+                string connString = _config.GetConnectionString("MyDatabaseConnection");
+
+                using (var connection = new MySqlConnection(connString))
+                {
+                    connection.Open();
+
+                    const string sql = @"
+                        SELECT 
+                            st.Id as StationId,
+                            st.StationName,
+                            COUNT(s.Id) as TotalShipments,
+                            SUM(s.WeightKg) as TotalWeightKg,
+                            SUM(CASE WHEN s.Status = 'Pending' THEN 1 ELSE 0 END) as PendingCount,
+                            SUM(CASE WHEN s.Status = 'Assigned' THEN 1 ELSE 0 END) as AssignedCount,
+                            SUM(CASE WHEN s.Status = 'Delivered' THEN 1 ELSE 0 END) as DeliveredCount
+                        FROM Stations st
+                        LEFT JOIN Shipments s ON st.Id = s.StationId
+                        GROUP BY st.Id, st.StationName
+                        HAVING TotalShipments > 0
+                        ORDER BY TotalWeightKg DESC;";
+
+                    var stats = new List<object>();
+
+                    using (var cmd = new MySqlCommand(sql, connection))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                stats.Add(new
+                                {
+                                    stationId = reader.GetInt32("StationId"),
+                                    stationName = reader.GetString("StationName"),
+                                    totalShipments = reader.GetInt32("TotalShipments"),
+                                    totalWeightKg = reader.IsDBNull(reader.GetOrdinal("TotalWeightKg")) ? 0 : reader.GetInt64("TotalWeightKg"),
+                                    pendingCount = reader.GetInt32("PendingCount"),
+                                    assignedCount = reader.GetInt32("AssignedCount"),
+                                    deliveredCount = reader.GetInt32("DeliveredCount")
+                                });
+                            }
+                        }
+                    }
+
+                    return Ok(new
+                    {
+                        mesaj = $"{stats.Count} istasyonda kargo bulundu.",
+                        stats
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { mesaj = "Sunucu hatası: " + ex.Message });
+            }
+        }
     }
 }
