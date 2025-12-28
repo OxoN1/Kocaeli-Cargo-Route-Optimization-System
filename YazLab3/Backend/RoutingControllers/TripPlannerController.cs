@@ -355,48 +355,85 @@ namespace YazLab2.Controllers
                 // Araçları kapasiteye göre büyükten küçüğe sırala
                 slots = slots.OrderByDescending(s => s.CapacityKg).ToList();
 
-                // Her bölgeyi uygun araçlara ata (kapasite kontrolü ile)
+                // Her bölgeyi uygun araca ata
+                int vehicleIndex = 0;
                 foreach (var region in regions)
                 {
-                    var stationList = ((IEnumerable<dynamic>)region.stations).ToList();
-                    if (!stationList.Any()) continue;
+                    if (region.stations.Count == 0) continue;
 
-                    // Bu bölgenin istasyonlarını kapasite kontrolü ile araçlara dağıt
-                    foreach (var station in stationList)
+                    // Kapasitesi yeterli araç bul
+                    VehicleSlot? selectedVehicle = null;
+                    
+                    // Önce mevcut araçlardan uygun olanı bul
+                    for (int i = vehicleIndex; i < slots.Count; i++)
                     {
-                        var stationId = (int)station.StationId;
-                        var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
-                        
-                        foreach (var sh in stationShipments)
+                        if (slots[i].RemainingKg >= region.weight)
                         {
-                            // Bu kargo için uygun araç bul
-                            VehicleSlot? selectedVehicle = null;
+                            selectedVehicle = slots[i];
+                            vehicleIndex = i + 1;
+                            break;
+                        }
+                    }
+
+                    // Araç bulunamadıysa ve unlimited modda, kiralık ekle
+                    if (selectedVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var tempConn = new MySqlConnection(connString))
+                        {
+                            await tempConn.OpenAsync();
+                            selectedVehicle = await AddRentedSlotAsync(tempConn);
+                        }
+                        slots.Add(selectedVehicle);
+                    }
+
+                    if (selectedVehicle != null)
+                    {
+                        if (!assignment.ContainsKey(selectedVehicle))
+                            assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
+
+                        foreach (var station in region.stations)
+                        {
+                            var stationId = (int)station.StationId;
+                            var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
                             
-                            // Önce mevcut araçlardan kapasitesi yeterli olanı bul
-                            foreach (var slot in slots)
+                            foreach (var sh in stationShipments)
                             {
-                                if (slot.RemainingKg >= sh.WeightKg)
+                                // Kapasite kontrolü - eğer mevcut araç doluysa yeni araç bul/kirala
+                                if (selectedVehicle.RemainingKg < sh.WeightKg)
                                 {
-                                    selectedVehicle = slot;
-                                    break;
-                                }
-                            }
+                                    // Başka boş araç ara
+                                    VehicleSlot? newVehicle = null;
+                                    foreach (var slot in slots)
+                                    {
+                                        if (slot.RemainingKg >= sh.WeightKg)
+                                        {
+                                            newVehicle = slot;
+                                            break;
+                                        }
+                                    }
 
-                            // Araç bulunamadıysa ve unlimited modda, kiralık ekle
-                            if (selectedVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
-                            {
-                                using (var tempConn = new MySqlConnection(connString))
-                                {
-                                    await tempConn.OpenAsync();
-                                    selectedVehicle = await AddRentedSlotAsync(tempConn);
-                                }
-                                slots.Add(selectedVehicle);
-                            }
+                                    // Uygun araç yoksa ve unlimited modda kiralık ekle
+                                    if (newVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        using (var tempConn = new MySqlConnection(connString))
+                                        {
+                                            await tempConn.OpenAsync();
+                                            newVehicle = await AddRentedSlotAsync(tempConn);
+                                        }
+                                        slots.Add(newVehicle);
+                                    }
 
-                            if (selectedVehicle != null)
-                            {
-                                if (!assignment.ContainsKey(selectedVehicle))
-                                    assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
+                                    // Yeni araç bulunamadıysa (limited modda) hata ver
+                                    if (newVehicle == null)
+                                    {
+                                        return BadRequest(new { mesaj = $"Kargo {sh.Id} için yeterli kapasite yok. Limited modda daha fazla araç kiralanamaz." });
+                                    }
+
+                                    selectedVehicle = newVehicle;
+                                    
+                                    if (!assignment.ContainsKey(selectedVehicle))
+                                        assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
+                                }
 
                                 assignment[selectedVehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
                                 selectedVehicle.RemainingKg -= sh.WeightKg;
