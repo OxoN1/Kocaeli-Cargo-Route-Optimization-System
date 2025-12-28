@@ -269,6 +269,7 @@ namespace YazLab2.Controllers
                 // HAT 3 (GÜNEY KIYI): Karamürsel, Gölcük, Başiskele, İzmit (Güney sahil yolu)
 
                 var assignment = new Dictionary<VehicleSlot, List<(long ShipmentId, int StationId, int WeightKg, int UserId, int Quantity)>>();
+                
                 var cargoToVehicle = new Dictionary<long, VehicleSlot>();
 
                 // İstasyon bazlı gruplama
@@ -279,6 +280,7 @@ namespace YazLab2.Controllers
                         Lat = g.First().Lat,
                         Lng = g.First().Lng,
                         TotalWeight = g.Sum(x => x.WeightKg),
+                        MaxWeight = g.Max(x => x.WeightKg),
                         Shipments = g.ToList()
                     })
                     .ToList();
@@ -337,10 +339,10 @@ namespace YazLab2.Controllers
                         guneyKiyiBolge = guneyKiyiBolge.Concat(new[] { station }).ToList();
                 }
 
-                // Her bölgenin toplam ağırlığı
-                int d100BolgeWeight = d100Bolge.Sum(s => s.TotalWeight);
-                int kuzeyBolgeWeight = kuzeyBolge.Sum(s => s.TotalWeight);
-                int guneyKiyiBolgeWeight = guneyKiyiBolge.Sum(s => s.TotalWeight);
+                // Her bölgenin toplam ağırlığı (istasyon bazında EN YÜKSEK kargoya göre hesaplanır)
+                int d100BolgeWeight = d100Bolge.Sum(s => s.MaxWeight);
+                int kuzeyBolgeWeight = kuzeyBolge.Sum(s => s.MaxWeight);
+                int guneyKiyiBolgeWeight = guneyKiyiBolge.Sum(s => s.MaxWeight);
 
                 // Bölgeleri ağırlığa göre sırala (en ağır bölge en büyük aracı alır)
                 var regions = new List<(string name, dynamic stations, int weight)>
@@ -355,7 +357,7 @@ namespace YazLab2.Controllers
                 // Araçları kapasiteye göre büyükten küçüğe sırala
                 slots = slots.OrderByDescending(s => s.CapacityKg).ToList();
 
-                // Her bölgeyi uygun araca ata
+                // Her bölgeyi uygun araca ata (eski mantık korunuyor, ama station içindeki EN YÜKSEK kargoya göre bölge ağırlığı belirlendi)
                 int vehicleIndex = 0;
                 foreach (var region in regions)
                 {
@@ -363,8 +365,8 @@ namespace YazLab2.Controllers
 
                     // Kapasitesi yeterli araç bul
                     VehicleSlot? selectedVehicle = null;
-                    
-                    // Önce mevcut araçlardan uygun olanı bul
+
+                    // Önce mevcut araçlardan uygun olanı bul (vehicleIndex ile ilerler)
                     for (int i = vehicleIndex; i < slots.Count; i++)
                     {
                         if (slots[i].RemainingKg >= region.weight)
@@ -393,9 +395,7 @@ namespace YazLab2.Controllers
 
                         foreach (var station in region.stations)
                         {
-                            var stationId = (int)station.StationId;
                             var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
-                            
                             foreach (var sh in stationShipments)
                             {
                                 // Kapasite kontrolü - eğer mevcut araç doluysa yeni araç bul/kirala
@@ -423,14 +423,15 @@ namespace YazLab2.Controllers
                                         slots.Add(newVehicle);
                                     }
 
-                                    // Yeni araç bulunamadıysa (limited modda) hata ver
+                                    // Yeni araç bulunamadıysa (limited modda) hata VERME: bu kargoyu atla ve devam et
                                     if (newVehicle == null)
                                     {
-                                        return BadRequest(new { mesaj = $"Kargo {sh.Id} için yeterli kapasite yok. Limited modda daha fazla araç kiralanamaz." });
+                                        // silently skip this shipment when no vehicle available in limited mode
+                                        continue;
                                     }
 
                                     selectedVehicle = newVehicle;
-                                    
+
                                     if (!assignment.ContainsKey(selectedVehicle))
                                         assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
                                 }
