@@ -258,48 +258,151 @@ namespace YazLab2.Controllers
                 }
                 else // unlimited
                 {
-                    // unlimited: A�IR KARGOLAR �NCE (First-Fit Decreasing)
-                    candidateShipments = candidateShipments
-                        .OrderByDescending(s => s.WeightKg)  // Ağır kargolar önce
-                        .ThenBy(s => s.Lng)  // Aynı ağırlıkta olanlar coğrafi sırada
-                        .ToList();
+                    // unlimited modda sıralama önemli değil, Bölge Bazlı Algoritma kullanacağız
+                    candidateShipments = candidateShipments.ToList();
                 }
 
-                // ÖNCE BÜYÜK KARGOLARI ATA (First-Fit Decreasing)
+                // ========== KOCAELİ YOL BAZLI OPTİMİZASYON ALGORİTMASI ==========
+                // Gerçek yol ağına göre 3 hat:
+                // HAT 1 (D100): Çayırova, Gebze, Darıca, Dilovası, Körfez, Derince (İstanbul-Kocaeli ana yolu)
+                // HAT 2 (KUZEY): Kandıra, Kartepe (Kuzey bölge)
+                // HAT 3 (GÜNEY KIYI): Karamürsel, Gölcük, Başiskele, İzmit (Güney sahil yolu)
+
                 var assignment = new Dictionary<VehicleSlot, List<(long ShipmentId, int StationId, int WeightKg, int UserId, int Quantity)>>();
                 var cargoToVehicle = new Dictionary<long, VehicleSlot>();
-                
-                // İlk geçiş: Büyük kargoları doğrudan ata
-                foreach (var sh in candidateShipments)
+
+                // İstasyon bazlı gruplama
+                var stationGroups = candidateShipments
+                    .GroupBy(s => s.StationId)
+                    .Select(g => new {
+                        StationId = g.Key,
+                        Lat = g.First().Lat,
+                        Lng = g.First().Lng,
+                        TotalWeight = g.Sum(x => x.WeightKg),
+                        Shipments = g.ToList()
+                    })
+                    .ToList();
+
+                // İstasyon isimlerini al (database'den)
+                var stationNames = new Dictionary<int, string>();
+                using (var nameConn = new MySqlConnection(connString))
                 {
-                    var vehicle = slots.FirstOrDefault(s => s.RemainingKg >= sh.WeightKg);
-                    if (vehicle != null)
+                    await nameConn.OpenAsync();
+                    using var nameCmd = new MySqlCommand("SELECT Id, StationName FROM Stations", nameConn);
+                    using var nameReader = await nameCmd.ExecuteReaderAsync();
+                    while (await nameReader.ReadAsync())
                     {
-                        if (!assignment.ContainsKey(vehicle)) assignment[vehicle] = new List<(long, int, int, int, int)>();
-                        assignment[vehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
-                        vehicle.RemainingKg -= sh.WeightKg;
-                        cargoToVehicle[sh.Id] = vehicle;
+                        stationNames[nameReader.GetInt32(0)] = nameReader.GetString(1);
                     }
-                    else if (mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                }
+
+                // Yol bazlı gruplama - istasyon ismine göre
+                var d100Hatti = new List<string> { "Çayırova", "Gebze", "Darıca", "Dilovası", "Körfez", "Derince" };
+                var kuzeyHatti = new List<string> { "Kandıra", "Kartepe" };
+                var guneyKiyiHatti = new List<string> { "Karamürsel", "Gölcük", "Başiskele", "İzmit" };
+
+                var d100Bolge = stationGroups.Where(s => {
+                    var name = stationNames.ContainsKey(s.StationId) ? stationNames[s.StationId] : "";
+                    return d100Hatti.Any(h => name.Contains(h));
+                }).ToList();
+
+                var kuzeyBolge = stationGroups.Where(s => {
+                    var name = stationNames.ContainsKey(s.StationId) ? stationNames[s.StationId] : "";
+                    return kuzeyHatti.Any(h => name.Contains(h));
+                }).ToList();
+
+                var guneyKiyiBolge = stationGroups.Where(s => {
+                    var name = stationNames.ContainsKey(s.StationId) ? stationNames[s.StationId] : "";
+                    return guneyKiyiHatti.Any(h => name.Contains(h));
+                }).ToList();
+
+                // Atanmamış istasyonları kontrol et ve en yakın bölgeye ekle
+                var assignedIds = d100Bolge.Select(x => x.StationId)
+                    .Concat(kuzeyBolge.Select(x => x.StationId))
+                    .Concat(guneyKiyiBolge.Select(x => x.StationId))
+                    .ToHashSet();
+
+                foreach (var station in stationGroups.Where(s => !assignedIds.Contains(s.StationId)))
+                {
+                    // En yakın bölgeyi bul
+                    double d100Dist = d100Bolge.Count > 0 ? d100Bolge.Min(s => CalculateDistance(station.Lat, station.Lng, s.Lat, s.Lng)) : double.MaxValue;
+                    double kuzeyDist = kuzeyBolge.Count > 0 ? kuzeyBolge.Min(s => CalculateDistance(station.Lat, station.Lng, s.Lat, s.Lng)) : double.MaxValue;
+                    double guneyDist = guneyKiyiBolge.Count > 0 ? guneyKiyiBolge.Min(s => CalculateDistance(station.Lat, station.Lng, s.Lat, s.Lng)) : double.MaxValue;
+
+                    if (d100Dist <= kuzeyDist && d100Dist <= guneyDist)
+                        d100Bolge = d100Bolge.Concat(new[] { station }).ToList();
+                    else if (kuzeyDist <= guneyDist)
+                        kuzeyBolge = kuzeyBolge.Concat(new[] { station }).ToList();
+                    else
+                        guneyKiyiBolge = guneyKiyiBolge.Concat(new[] { station }).ToList();
+                }
+
+                // Her bölgenin toplam ağırlığı
+                int d100BolgeWeight = d100Bolge.Sum(s => s.TotalWeight);
+                int kuzeyBolgeWeight = kuzeyBolge.Sum(s => s.TotalWeight);
+                int guneyKiyiBolgeWeight = guneyKiyiBolge.Sum(s => s.TotalWeight);
+
+                // Bölgeleri ağırlığa göre sırala (en ağır bölge en büyük aracı alır)
+                var regions = new List<(string name, dynamic stations, int weight)>
+                {
+                    ("D100", d100Bolge, d100BolgeWeight),
+                    ("KUZEY", kuzeyBolge, kuzeyBolgeWeight),
+                    ("GUNEY_KIYI", guneyKiyiBolge, guneyKiyiBolgeWeight)
+                };
+
+                regions = regions.Where(r => r.weight > 0).OrderByDescending(r => r.weight).ToList();
+
+                // Araçları kapasiteye göre büyükten küçüğe sırala
+                slots = slots.OrderByDescending(s => s.CapacityKg).ToList();
+
+                // Her bölgeyi uygun araca ata
+                int vehicleIndex = 0;
+                foreach (var region in regions)
+                {
+                    var stationList = (IEnumerable<dynamic>)region.stations;
+                    if (!stationList.Any()) continue;
+
+                    // Kapasitesi yeterli araç bul
+                    VehicleSlot? selectedVehicle = null;
+                    
+                    // Önce mevcut araçlardan uygun olanı bul
+                    for (int i = vehicleIndex; i < slots.Count; i++)
                     {
-                        // Kiralık araç ekle
-                        if (sh.WeightKg <= 500)
+                        if (slots[i].RemainingKg >= region.weight)
                         {
-                            VehicleSlot rentedVehicle;
-                            using (var tempConn = new MySqlConnection(connString))
-                            {
-                                await tempConn.OpenAsync();
-                                rentedVehicle = await AddRentedSlotAsync(tempConn);
-                            }
-                            slots.Add(rentedVehicle);
-                            if (!assignment.ContainsKey(rentedVehicle)) assignment[rentedVehicle] = new List<(long, int, int, int, int)>();
-                            assignment[rentedVehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
-                            rentedVehicle.RemainingKg -= sh.WeightKg;
-                            cargoToVehicle[sh.Id] = rentedVehicle;
+                            selectedVehicle = slots[i];
+                            vehicleIndex = i + 1;
+                            break;
                         }
-                        else
+                    }
+
+                    // Araç bulunamadıysa ve unlimited modda, kiralık ekle
+                    if (selectedVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                    {
+                        using (var tempConn = new MySqlConnection(connString))
                         {
-                            // Bu kargo hiçbir araca sığmıyor - atlanacak
+                            await tempConn.OpenAsync();
+                            selectedVehicle = await AddRentedSlotAsync(tempConn);
+                        }
+                        slots.Add(selectedVehicle);
+                    }
+
+                    if (selectedVehicle != null)
+                    {
+                        if (!assignment.ContainsKey(selectedVehicle))
+                            assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
+
+                        foreach (var station in stationList)
+                        {
+                            var stationId = (int)station.StationId;
+                            var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
+                            
+                            foreach (var sh in stationShipments)
+                            {
+                                assignment[selectedVehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
+                                selectedVehicle.RemainingKg -= sh.WeightKg;
+                                cargoToVehicle[sh.Id] = selectedVehicle;
+                            }
                         }
                     }
                 }
@@ -533,6 +636,19 @@ VALUES (@d, @vehicleId, @dist, @road, @rental, @total, @polyline); SELECT LAST_I
         }
 
         private static double ToRad(double deg) => deg * Math.PI / 180.0;
+
+        // Haversine formula ile iki nokta arasındaki mesafe (km)
+        private static double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371.0; // Dünya yarıçapı (km)
+            var dLat = ToRad(lat2 - lat1);
+            var dLon = ToRad(lon2 - lon1);
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
 
         private static async Task<(double lat, double lng)> GetStationLatLngFromOpenConnection(MySqlConnection connection, int stationId)
         {
