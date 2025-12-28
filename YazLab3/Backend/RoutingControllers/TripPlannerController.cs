@@ -355,50 +355,49 @@ namespace YazLab2.Controllers
                 // Araçları kapasiteye göre büyükten küçüğe sırala
                 slots = slots.OrderByDescending(s => s.CapacityKg).ToList();
 
-                // Her bölgeyi uygun araca ata
-                int vehicleIndex = 0;
+                // Her bölgeyi uygun araçlara ata (kapasite kontrolü ile)
                 foreach (var region in regions)
                 {
-                    var stationList = (IEnumerable<dynamic>)region.stations;
+                    var stationList = ((IEnumerable<dynamic>)region.stations).ToList();
                     if (!stationList.Any()) continue;
 
-                    // Kapasitesi yeterli araç bul
-                    VehicleSlot? selectedVehicle = null;
-                    
-                    // Önce mevcut araçlardan uygun olanı bul
-                    for (int i = vehicleIndex; i < slots.Count; i++)
+                    // Bu bölgenin istasyonlarını kapasite kontrolü ile araçlara dağıt
+                    foreach (var station in stationList)
                     {
-                        if (slots[i].RemainingKg >= region.weight)
+                        var stationId = (int)station.StationId;
+                        var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
+                        
+                        foreach (var sh in stationShipments)
                         {
-                            selectedVehicle = slots[i];
-                            vehicleIndex = i + 1;
-                            break;
-                        }
-                    }
-
-                    // Araç bulunamadıysa ve unlimited modda, kiralık ekle
-                    if (selectedVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
-                    {
-                        using (var tempConn = new MySqlConnection(connString))
-                        {
-                            await tempConn.OpenAsync();
-                            selectedVehicle = await AddRentedSlotAsync(tempConn);
-                        }
-                        slots.Add(selectedVehicle);
-                    }
-
-                    if (selectedVehicle != null)
-                    {
-                        if (!assignment.ContainsKey(selectedVehicle))
-                            assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
-
-                        foreach (var station in stationList)
-                        {
-                            var stationId = (int)station.StationId;
-                            var stationShipments = ((IEnumerable<(long Id, int StationId, int WeightKg, int UserId, double Lat, double Lng, int Quantity)>)station.Shipments).ToList();
+                            // Bu kargo için uygun araç bul
+                            VehicleSlot? selectedVehicle = null;
                             
-                            foreach (var sh in stationShipments)
+                            // Önce mevcut araçlardan kapasitesi yeterli olanı bul
+                            foreach (var slot in slots)
                             {
+                                if (slot.RemainingKg >= sh.WeightKg)
+                                {
+                                    selectedVehicle = slot;
+                                    break;
+                                }
+                            }
+
+                            // Araç bulunamadıysa ve unlimited modda, kiralık ekle
+                            if (selectedVehicle == null && mode.Equals("unlimited", StringComparison.OrdinalIgnoreCase))
+                            {
+                                using (var tempConn = new MySqlConnection(connString))
+                                {
+                                    await tempConn.OpenAsync();
+                                    selectedVehicle = await AddRentedSlotAsync(tempConn);
+                                }
+                                slots.Add(selectedVehicle);
+                            }
+
+                            if (selectedVehicle != null)
+                            {
+                                if (!assignment.ContainsKey(selectedVehicle))
+                                    assignment[selectedVehicle] = new List<(long, int, int, int, int)>();
+
                                 assignment[selectedVehicle].Add((sh.Id, sh.StationId, sh.WeightKg, sh.UserId, sh.Quantity));
                                 selectedVehicle.RemainingKg -= sh.WeightKg;
                                 cargoToVehicle[sh.Id] = selectedVehicle;

@@ -87,30 +87,46 @@ namespace YazLab2.Controllers
                         }
                     }
 
+                    // Her bir kargo için ağırlığı hesapla (toplam ağırlık / adet)
+                    int weightPerItem = request.WeightKg / request.Quantity;
+                    int remainder = request.WeightKg % request.Quantity;
+
                     const string insertSql = @"
 INSERT INTO Shipments (UserId, StationId, WeightKg, Content, ShipDate, Status, Quantity)
-VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending', @quantity);
-SELECT LAST_INSERT_ID();";
+VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending', 1);";
 
-                    long shipmentId;
-                    using (var insertCmd = new MySqlCommand(insertSql, connection))
+                    var shipmentIds = new List<long>();
+
+                    // Adet kadar satır oluştur
+                    for (int i = 0; i < request.Quantity; i++)
                     {
-                        insertCmd.Parameters.AddWithValue("@userId", userId);
-                        insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
-                        insertCmd.Parameters.AddWithValue("@weightKg", request.WeightKg);
-                        insertCmd.Parameters.AddWithValue("@content", request.Content);
-                        insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
-                        insertCmd.Parameters.AddWithValue("@quantity", request.Quantity);
+                        // Son kargoya kalanı ekle (tam bölünmüyorsa)
+                        int currentWeight = weightPerItem;
+                        if (i == request.Quantity - 1)
+                        {
+                            currentWeight += remainder;
+                        }
 
-                        var idObj = insertCmd.ExecuteScalar();
-                        shipmentId = Convert.ToInt64(idObj);
+                        using (var insertCmd = new MySqlCommand(insertSql + "SELECT LAST_INSERT_ID();", connection))
+                        {
+                            insertCmd.Parameters.AddWithValue("@userId", userId);
+                            insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
+                            insertCmd.Parameters.AddWithValue("@weightKg", currentWeight);
+                            insertCmd.Parameters.AddWithValue("@content", request.Content);
+                            insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
+
+                            var idObj = insertCmd.ExecuteScalar();
+                            shipmentIds.Add(Convert.ToInt64(idObj));
+                        }
                     }
 
                     return Ok(new
                     {
                         mesaj = $"Kargo talebi alındı. {request.Quantity} adet kargo oluşturuldu.",
-                        shipmentId,
+                        shipmentIds,
                         quantity = request.Quantity,
+                        weightPerItem,
+                        totalWeight = request.WeightKg,
                         shipDate = tomorrow.ToString("yyyy-MM-dd"),
                         status = "Pending",
                     });

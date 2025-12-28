@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("YazLab3")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a21d1ee5db1eb631160a081194e72d73f65ae608")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b6db79282abf61a47c77fd71257257f8e47a63ba")]
 [assembly: System.Reflection.AssemblyProductAttribute("YazLab3")]
 [assembly: System.Reflection.AssemblyTitleAttribute("YazLab3")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
