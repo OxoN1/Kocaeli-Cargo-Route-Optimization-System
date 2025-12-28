@@ -87,46 +87,46 @@ namespace YazLab2.Controllers
                         }
                     }
 
-                    // Her bir kargo için ağırlığı hesapla (toplam ağırlık / adet)
-                    int weightPerItem = request.WeightKg / request.Quantity;
-                    int remainder = request.WeightKg % request.Quantity;
+                    // Toplam ağırlığı adet sayısına böl (tamsayı bölme + kalan dağıtımı)
+                    int totalQty = request.Quantity;
+                    int baseWeight = request.WeightKg / totalQty;
+                    int remainder = request.WeightKg % totalQty;
+
+                    var createdIds = new List<long>();
 
                     const string insertSql = @"
 INSERT INTO Shipments (UserId, StationId, WeightKg, Content, ShipDate, Status, Quantity)
-VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending', 1);";
+VALUES (@userId, @stationId, @weightKg, @content, @shipDate, 'Pending', 1);
+SELECT LAST_INSERT_ID();";
 
-                    var shipmentIds = new List<long>();
-
-                    // Adet kadar satır oluştur
-                    for (int i = 0; i < request.Quantity; i++)
+                    using (var tran = connection.BeginTransaction())
                     {
-                        // Son kargoya kalanı ekle (tam bölünmüyorsa)
-                        int currentWeight = weightPerItem;
-                        if (i == request.Quantity - 1)
+                        for (int i = 0; i < totalQty; i++)
                         {
-                            currentWeight += remainder;
+                            // İlk 'remainder' adet kargoya 1 kg ekstra ekle (toplamı korumak için)
+                            int pieceWeight = baseWeight + (i < remainder ? 1 : 0);
+
+                            using (var insertCmd = new MySqlCommand(insertSql, connection, tran))
+                            {
+                                insertCmd.Parameters.AddWithValue("@userId", userId);
+                                insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
+                                insertCmd.Parameters.AddWithValue("@weightKg", pieceWeight);
+                                insertCmd.Parameters.AddWithValue("@content", request.Content);
+                                insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
+
+                                var idObj = insertCmd.ExecuteScalar();
+                                createdIds.Add(Convert.ToInt64(idObj));
+                            }
                         }
 
-                        using (var insertCmd = new MySqlCommand(insertSql + "SELECT LAST_INSERT_ID();", connection))
-                        {
-                            insertCmd.Parameters.AddWithValue("@userId", userId);
-                            insertCmd.Parameters.AddWithValue("@stationId", request.StationId);
-                            insertCmd.Parameters.AddWithValue("@weightKg", currentWeight);
-                            insertCmd.Parameters.AddWithValue("@content", request.Content);
-                            insertCmd.Parameters.AddWithValue("@shipDate", tomorrow.ToString("yyyy-MM-dd"));
-
-                            var idObj = insertCmd.ExecuteScalar();
-                            shipmentIds.Add(Convert.ToInt64(idObj));
-                        }
+                        tran.Commit();
                     }
 
                     return Ok(new
                     {
                         mesaj = $"Kargo talebi alındı. {request.Quantity} adet kargo oluşturuldu.",
-                        shipmentIds,
+                        shipmentIds = createdIds,
                         quantity = request.Quantity,
-                        weightPerItem,
-                        totalWeight = request.WeightKg,
                         shipDate = tomorrow.ToString("yyyy-MM-dd"),
                         status = "Pending",
                     });

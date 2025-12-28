@@ -437,6 +437,107 @@ function MapPage() {
     setPlanMsg("");
   };
 
+  // Test senaryolarını yükle
+  const loadTestScenario = async (scenarioNumber) => {
+    try {
+      setPlanMsg(`Senaryo ${scenarioNumber} yükleniyor...`);
+      
+      const email = localStorage.getItem("userEmail");
+      if (!email) {
+        setPlanMsg("Önce giriş yapmalısınız.");
+        return;
+      }
+
+      // Senaryo verileri
+      const scenarios = {
+        1: [
+          { station: "Başiskele", quantity: 10, weight: 120, content: "Test Senaryo 1" },
+          { station: "Çayırova", quantity: 8, weight: 80, content: "Test Senaryo 1" },
+          { station: "Darıca", quantity: 15, weight: 200, content: "Test Senaryo 1" },
+          { station: "Derince", quantity: 10, weight: 150, content: "Test Senaryo 1" },
+          { station: "Dilovası", quantity: 12, weight: 180, content: "Test Senaryo 1" },
+          { station: "Gebze", quantity: 5, weight: 70, content: "Test Senaryo 1" },
+          { station: "Gölcük", quantity: 7, weight: 90, content: "Test Senaryo 1" },
+          { station: "Kandıra", quantity: 6, weight: 60, content: "Test Senaryo 1" },
+          { station: "Karamürsel", quantity: 9, weight: 110, content: "Test Senaryo 1" },
+          { station: "Kartepe", quantity: 11, weight: 130, content: "Test Senaryo 1" },
+          { station: "Körfez", quantity: 6, weight: 75, content: "Test Senaryo 1" },
+          { station: "İzmit", quantity: 14, weight: 160, content: "Test Senaryo 1" }
+        ],
+        2: [
+          { station: "Başiskele", quantity: 40, weight: 200, content: "Test Senaryo 2" },
+          { station: "Çayırova", quantity: 35, weight: 175, content: "Test Senaryo 2" },
+          { station: "Darıca", quantity: 10, weight: 150, content: "Test Senaryo 2" },
+          { station: "Derince", quantity: 5, weight: 100, content: "Test Senaryo 2" },
+          { station: "Gebze", quantity: 8, weight: 120, content: "Test Senaryo 2" },
+          { station: "İzmit", quantity: 20, weight: 160, content: "Test Senaryo 2" }
+        ],
+        3: [
+          { station: "Çayırova", quantity: 3, weight: 700, content: "Test Senaryo 3" },
+          { station: "Dilovası", quantity: 4, weight: 800, content: "Test Senaryo 3" },
+          { station: "Gebze", quantity: 5, weight: 900, content: "Test Senaryo 3" },
+          { station: "İzmit", quantity: 5, weight: 300, content: "Test Senaryo 3" }
+        ],
+        4: [
+          { station: "Başiskele", quantity: 30, weight: 300, content: "Test Senaryo 4" },
+          { station: "Gölcük", quantity: 15, weight: 220, content: "Test Senaryo 4" },
+          { station: "Kandıra", quantity: 5, weight: 250, content: "Test Senaryo 4" },
+          { station: "Karamürsel", quantity: 20, weight: 180, content: "Test Senaryo 4" },
+          { station: "Kartepe", quantity: 10, weight: 200, content: "Test Senaryo 4" },
+          { station: "Körfez", quantity: 8, weight: 400, content: "Test Senaryo 4" }
+        ]
+      };
+
+      const scenarioData = scenarios[scenarioNumber];
+      if (!scenarioData) {
+        setPlanMsg("Geçersiz senaryo numarası.");
+        return;
+      }
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (const item of scenarioData) {
+        // İstasyon ID'sini bul
+        const station = stations.find(s => s.name === item.station);
+        if (!station) {
+          console.warn(`İstasyon bulunamadı: ${item.station}`);
+          failCount++;
+          continue;
+        }
+
+        try {
+          const response = await fetch("http://localhost:5000/api/shipments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              stationId: station.id,
+              weightKg: item.weight,
+              content: item.content,
+              quantity: item.quantity
+            })
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            console.error(`Kargo eklenemedi: ${item.station}`);
+          }
+        } catch (e) {
+          failCount++;
+          console.error(`Kargo ekleme hatası (${item.station}):`, e);
+        }
+      }
+
+      setPlanMsg(`Senaryo ${scenarioNumber} yüklendi! ✅ ${successCount} başarılı, ❌ ${failCount} hatalı`);
+    } catch (e) {
+      console.error(e);
+      setPlanMsg("Senaryo yükleme hatası: " + e.message);
+    }
+  };
+
   // Çıkış yap
   const handleLogout = () => {
     localStorage.removeItem("userEmail");
@@ -970,9 +1071,50 @@ function MapPage() {
 
       <div className={`side-panel ${openAdminPanel ? "open" : ""}`}>
         <div className="side-panel-header">
-          <strong>İstasyon Ekle (Admin)</strong>
+          <strong>Admin Araçları</strong>
         </div>
         <div className="side-panel-body">
+          <div style={{ marginBottom: 20, padding: 12, backgroundColor: "rgba(59, 130, 246, 0.2)", borderRadius: 6 }}>
+            <div style={{ fontSize: "1em", fontWeight: "bold", marginBottom: 8, color: "#60a5fa" }}>
+              🧪 Test Senaryoları
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <button 
+                onClick={() => loadTestScenario(1)} 
+                style={{ fontSize: "0.85em", padding: "8px" }}
+              >
+                📦 Senaryo 1
+              </button>
+              <button 
+                onClick={() => loadTestScenario(2)} 
+                style={{ fontSize: "0.85em", padding: "8px" }}
+              >
+                📦 Senaryo 2
+              </button>
+              <button 
+                onClick={() => loadTestScenario(3)} 
+                style={{ fontSize: "0.85em", padding: "8px" }}
+              >
+                📦 Senaryo 3
+              </button>
+              <button 
+                onClick={() => loadTestScenario(4)} 
+                style={{ fontSize: "0.85em", padding: "8px" }}
+              >
+                📦 Senaryo 4
+              </button>
+            </div>
+            <div style={{ fontSize: "0.75em", color: "#aaa", marginTop: 8 }}>
+              Test verilerini otomatik yükler
+            </div>
+          </div>
+
+          <hr style={{ border: "1px solid rgba(255,255,255,0.1)", margin: "16px 0" }} />
+
+          <div style={{ fontSize: "1em", fontWeight: "bold", marginBottom: 8, color: "#60a5fa" }}>
+            ➕ Yeni İstasyon Ekle
+          </div>
+
           <label>İsim:</label>
           <input
             value={newStationName}
