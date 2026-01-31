@@ -167,7 +167,3 @@ Short descriptions:
 - If vehicle capacity is exceeded: if unlimited mode is enabled the system will rent additional vehicles; otherwise check input quantities/weights.
 
 ---
-
-Prepared by: Project Contributor
-
-If you want, I can split this into separate `README.tr.md` and `README.en.md` files or add an ER diagram and API endpoint list.
